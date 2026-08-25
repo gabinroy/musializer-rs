@@ -19,13 +19,21 @@ pub fn wasm_main() {
     let web_options = eframe::WebOptions::default();
 
     wasm_bindgen_futures::spawn_local(async {
-        eframe::WebRunner::new()
+        let runner = eframe::WebRunner::new();
+        let res = runner
             .start(
                 "musializer_canvas",
                 web_options,
                 Box::new(|cc| Ok(Box::new(MusializerApp::new(cc)))),
             )
-            .await
-            .expect("Failed to start eframe on canvas");
+            .await;
+
+        if res.is_ok() {
+            if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+                if let Some(loading) = doc.get_element_by_id("loading") {
+                    loading.remove();
+                }
+            }
+        }
     });
 }

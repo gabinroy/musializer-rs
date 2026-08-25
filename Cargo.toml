@@ -51,6 +51,7 @@ web-sys = { version = "0.3", features = [
     "AudioBufferSourceNode",
     "Window",
     "Document",
+    "Element",
     "HtmlCanvasElement",
     "File",
     "FileList",
