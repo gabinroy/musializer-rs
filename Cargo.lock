@@ -1610,6 +1610,7 @@ dependencies = [
  "egui",
  "env_logger",
  "getrandom 0.2.17",
+ "image",
  "log",
  "rfd",
  "rustfft",

@@ -18,6 +18,53 @@ cargo run --release
 - **Windows**: Output at `target/release/musializer-rs.exe`
 - **macOS**: Output at `target/release/musializer-rs`
 
+### Linux Packaging (AppImage, Debian `.deb`, & Tarball)
+
+#### 1. Debian Package (`.deb`)
+```bash
+# Install cargo-deb
+cargo install cargo-deb
+
+# Generate .deb package
+cargo deb
+# Output at: target/debian/musializer-rs_*.deb
+
+# Install on Debian/Ubuntu/Mint
+sudo dpkg -i target/debian/musializer-rs_*.deb
+```
+
+#### 2. Universal Linux AppImage / Standalone Bundle
+```bash
+# Install cargo-bundle
+cargo install cargo-bundle
+
+# Generate universal AppImage / Linux bundle
+cargo bundle --release
+# Output at: target/release/bundle/deb/ or target/release/bundle/appimage/
+```
+
+#### 3. Linux Desktop Entry & Icon Installation
+```bash
+# Copy binary to system path
+sudo cp target/release/musializer-rs /usr/local/bin/
+
+# Install app icon
+sudo mkdir -p /usr/local/share/icons/hicolor/256x256/apps/
+sudo cp assets/icon.png /usr/local/share/icons/hicolor/256x256/apps/musializer-rs.png
+
+# Create desktop launcher file
+cat << 'EOF' > ~/.local/share/applications/musializer-rs.desktop
+[Desktop Entry]
+Name=Musializer-RS
+Comment=High-Performance Cross-Platform Audio Visualizer
+Exec=musializer-rs
+Icon=musializer-rs
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;Player;
+EOF
+```
+
 ### macOS Application Bundle (.app)
 ```bash
 # Install cargo-bundle
