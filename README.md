@@ -66,10 +66,10 @@ cargo run --release
 
 ### 3. Run on Web (WebAssembly)
 ```bash
-# Install Trunk
-cargo install trunk
+# Install Trunk (Pre-built binary or with locked dependencies)
+cargo install trunk --locked
 
-# Serve locally at http://127.0.0.1:8080
+# Serve locally at http://127.0.0.1:8080 (or specify --port 8081 if 8080 is in use)
 trunk serve
 ```
 
