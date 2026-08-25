@@ -14,6 +14,8 @@ impl ControlPanel {
         on_export_click: &mut bool,
         on_open_file_click: &mut bool,
     ) {
+        let is_mobile_or_portrait = ui.available_width() < 600.0;
+
         ui.vertical(|ui| {
             // Track Title / Info Banner
             ui.horizontal(|ui| {
@@ -21,38 +23,74 @@ impl ControlPanel {
                     ui.heading(
                         RichText::new(&track.title)
                             .color(Color32::from_rgb(240, 240, 255))
-                            .strong(),
+                            .strong()
+                            .size(if is_mobile_or_portrait { 16.0 } else { 20.0 }),
                     );
                     ui.label(
-                        RichText::new(format!(
-                            "({} Hz • {} ch)",
-                            track.sample_rate, track.channels
-                        ))
-                        .color(Color32::from_rgb(120, 130, 150))
-                        .size(12.0),
+                        RichText::new(format!("({} Hz)", track.sample_rate))
+                            .color(Color32::from_rgb(120, 130, 150))
+                            .size(11.0),
                     );
                 } else {
                     ui.heading(
-                        RichText::new("No Audio Loaded").color(Color32::from_rgb(150, 160, 180)),
+                        RichText::new("No Audio Loaded")
+                            .color(Color32::from_rgb(150, 160, 180))
+                            .size(if is_mobile_or_portrait { 16.0 } else { 20.0 }),
                     );
                 }
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui
-                        .button(
-                            RichText::new("🎬 Export Video")
-                                .color(Color32::from_rgb(255, 200, 80))
-                                .strong(),
-                        )
-                        .clicked()
+                    #[cfg(not(any(
+                        target_os = "android",
+                        target_os = "ios",
+                        target_arch = "wasm32"
+                    )))]
                     {
-                        *on_export_click = true;
+                        if ui
+                            .add_sized(
+                                [110.0, 36.0],
+                                Button::new(
+                                    RichText::new("🎬 Export Video")
+                                        .color(Color32::from_rgb(255, 200, 80))
+                                        .strong(),
+                                ),
+                            )
+                            .clicked()
+                        {
+                            *on_export_click = true;
+                        }
                     }
 
+                    #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
+                    {
+                        if ui
+                            .add_sized(
+                                [110.0, 36.0],
+                                Button::new(
+                                    RichText::new("🎥 Record Info")
+                                        .color(Color32::from_rgb(255, 200, 80))
+                                        .strong(),
+                                ),
+                            )
+                            .clicked()
+                        {
+                            *on_export_click = true;
+                        }
+                    }
+
+                    let open_btn_size = if is_mobile_or_portrait {
+                        [90.0, 36.0]
+                    } else {
+                        [100.0, 36.0]
+                    };
                     if ui
-                        .button(
-                            RichText::new("📂 Open File...")
-                                .color(Color32::from_rgb(100, 200, 255)),
+                        .add_sized(
+                            open_btn_size,
+                            Button::new(
+                                RichText::new("📂 Load Audio")
+                                    .color(Color32::from_rgb(100, 200, 255))
+                                    .strong(),
+                            ),
                         )
                         .clicked()
                     {
@@ -75,8 +113,12 @@ impl ControlPanel {
                         .monospace(),
                 );
 
+                let slider_width = (ui.available_width() - 60.0).max(100.0);
                 let slider_resp = ui.add_sized(
-                    [ui.available_width() - 60.0, 18.0],
+                    [
+                        slider_width,
+                        if is_mobile_or_portrait { 28.0 } else { 20.0 },
+                    ],
                     Slider::new(&mut seek_time, 0.0..=total_duration)
                         .show_value(false)
                         .trailing_fill(true),
@@ -93,95 +135,174 @@ impl ControlPanel {
                 );
             });
 
-            ui.add_space(6.0);
+            ui.add_space(4.0);
 
-            // Transport Bar (Play/Pause, Mode Selector, Theme Selector, Volume)
-            ui.horizontal(|ui| {
-                let is_playing = player.is_playing();
-                let play_btn_text = if is_playing { "⏸ Pause" } else { "▶ Play" };
-                let play_btn_color = if is_playing {
-                    Color32::from_rgb(255, 120, 120)
-                } else {
-                    Color32::from_rgb(100, 230, 140)
-                };
+            // Responsive Controls Layout (Wrapped for mobile touch screens)
+            if is_mobile_or_portrait {
+                // Mobile-first Stacking Layout
+                ui.horizontal_wrapped(|ui| {
+                    let is_playing = player.is_playing();
+                    let play_btn_text = if is_playing { "⏸ Pause" } else { "▶ Play" };
+                    let play_btn_color = if is_playing {
+                        Color32::from_rgb(255, 120, 120)
+                    } else {
+                        Color32::from_rgb(100, 230, 140)
+                    };
 
-                if ui
-                    .add_sized(
-                        [90.0, 32.0],
-                        Button::new(RichText::new(play_btn_text).color(play_btn_color).strong()),
-                    )
-                    .clicked()
-                {
-                    player.toggle_play_pause();
-                }
-
-                if ui.button("⏹ Stop").clicked() {
-                    player.stop();
-                }
-
-                ui.separator();
-
-                // Visualizer Mode Selector
-                ui.label("Mode:");
-                egui::ComboBox::from_id_source("viz_mode_combo")
-                    .selected_text(current_mode.name())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            current_mode,
-                            VisualizerMode::SpectrumBars,
-                            VisualizerMode::SpectrumBars.name(),
-                        );
-                        ui.selectable_value(
-                            current_mode,
-                            VisualizerMode::Waveform,
-                            VisualizerMode::Waveform.name(),
-                        );
-                        ui.selectable_value(
-                            current_mode,
-                            VisualizerMode::Circular,
-                            VisualizerMode::Circular.name(),
-                        );
-                    });
-
-                // Color Theme Selector
-                ui.label("Theme:");
-                egui::ComboBox::from_id_source("color_theme_combo")
-                    .selected_text(current_theme.name())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(
-                            current_theme,
-                            ColorTheme::CyberNeon,
-                            ColorTheme::CyberNeon.name(),
-                        );
-                        ui.selectable_value(
-                            current_theme,
-                            ColorTheme::SunsetGlow,
-                            ColorTheme::SunsetGlow.name(),
-                        );
-                        ui.selectable_value(
-                            current_theme,
-                            ColorTheme::EmeraldDeep,
-                            ColorTheme::EmeraldDeep.name(),
-                        );
-                        ui.selectable_value(
-                            current_theme,
-                            ColorTheme::Monochrome,
-                            ColorTheme::Monochrome.name(),
-                        );
-                    });
-
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    let mut vol = player.get_volume();
-                    let vol_slider = ui.add_sized(
-                        [100.0, 18.0],
-                        Slider::new(&mut vol, 0.0..=1.5).show_value(false),
-                    );
-                    if vol_slider.changed() {
-                        player.set_volume(vol);
+                    // Large 44px+ touch targets
+                    if ui
+                        .add_sized(
+                            [90.0, 44.0],
+                            Button::new(
+                                RichText::new(play_btn_text)
+                                    .color(play_btn_color)
+                                    .size(16.0)
+                                    .strong(),
+                            ),
+                        )
+                        .clicked()
+                    {
+                        player.toggle_play_pause();
                     }
-                    ui.label(RichText::new(format!("🔊 {:.0}%", vol * 100.0)).size(12.0));
+
+                    if ui.add_sized([70.0, 44.0], Button::new("⏹ Stop")).clicked() {
+                        player.stop();
+                    }
+
+                    egui::ComboBox::from_id_source("viz_mode_combo_mobile")
+                        .selected_text(current_mode.name())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                current_mode,
+                                VisualizerMode::SpectrumBars,
+                                VisualizerMode::SpectrumBars.name(),
+                            );
+                            ui.selectable_value(
+                                current_mode,
+                                VisualizerMode::Waveform,
+                                VisualizerMode::Waveform.name(),
+                            );
+                            ui.selectable_value(
+                                current_mode,
+                                VisualizerMode::Circular,
+                                VisualizerMode::Circular.name(),
+                            );
+                        });
+
+                    egui::ComboBox::from_id_source("color_theme_combo_mobile")
+                        .selected_text(current_theme.name())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::CyberNeon,
+                                ColorTheme::CyberNeon.name(),
+                            );
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::SunsetGlow,
+                                ColorTheme::SunsetGlow.name(),
+                            );
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::EmeraldDeep,
+                                ColorTheme::EmeraldDeep.name(),
+                            );
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::Monochrome,
+                                ColorTheme::Monochrome.name(),
+                            );
+                        });
                 });
-            });
+            } else {
+                // Desktop Landscape Layout
+                ui.horizontal(|ui| {
+                    let is_playing = player.is_playing();
+                    let play_btn_text = if is_playing { "⏸ Pause" } else { "▶ Play" };
+                    let play_btn_color = if is_playing {
+                        Color32::from_rgb(255, 120, 120)
+                    } else {
+                        Color32::from_rgb(100, 230, 140)
+                    };
+
+                    if ui
+                        .add_sized(
+                            [90.0, 36.0],
+                            Button::new(
+                                RichText::new(play_btn_text).color(play_btn_color).strong(),
+                            ),
+                        )
+                        .clicked()
+                    {
+                        player.toggle_play_pause();
+                    }
+
+                    if ui.button("⏹ Stop").clicked() {
+                        player.stop();
+                    }
+
+                    ui.separator();
+
+                    ui.label("Mode:");
+                    egui::ComboBox::from_id_source("viz_mode_combo")
+                        .selected_text(current_mode.name())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                current_mode,
+                                VisualizerMode::SpectrumBars,
+                                VisualizerMode::SpectrumBars.name(),
+                            );
+                            ui.selectable_value(
+                                current_mode,
+                                VisualizerMode::Waveform,
+                                VisualizerMode::Waveform.name(),
+                            );
+                            ui.selectable_value(
+                                current_mode,
+                                VisualizerMode::Circular,
+                                VisualizerMode::Circular.name(),
+                            );
+                        });
+
+                    ui.label("Theme:");
+                    egui::ComboBox::from_id_source("color_theme_combo")
+                        .selected_text(current_theme.name())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::CyberNeon,
+                                ColorTheme::CyberNeon.name(),
+                            );
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::SunsetGlow,
+                                ColorTheme::SunsetGlow.name(),
+                            );
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::EmeraldDeep,
+                                ColorTheme::EmeraldDeep.name(),
+                            );
+                            ui.selectable_value(
+                                current_theme,
+                                ColorTheme::Monochrome,
+                                ColorTheme::Monochrome.name(),
+                            );
+                        });
+
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        let mut vol = player.get_volume();
+                        let vol_slider = ui.add_sized(
+                            [100.0, 20.0],
+                            Slider::new(&mut vol, 0.0..=1.5).show_value(false),
+                        );
+                        if vol_slider.changed() {
+                            player.set_volume(vol);
+                        }
+                        ui.label(RichText::new(format!("🔊 {:.0}%", vol * 100.0)).size(12.0));
+                    });
+                });
+            }
         });
     }
 }

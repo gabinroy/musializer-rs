@@ -169,9 +169,13 @@ fn run_export_thread(
             "-r",
             &config.fps.to_string(),
             "-i",
-            "-", // Read video from stdin
+            "-",
             "-i",
-            track.file_path.to_str().ok_or("Invalid track file path")?,
+            track
+                .file_path
+                .as_ref()
+                .and_then(|p| p.to_str())
+                .ok_or("Track must have a file path for ffmpeg export")?,
             "-c:v",
             "libx264",
             "-preset",

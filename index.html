@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0B0D13">
+    <link rel="icon" type="image/jpeg" href="assets/icon.jpg">
+    <link rel="apple-touch-icon" href="assets/icon.jpg">
+    <title>Musializer-RS | High-Performance Audio Visualizer</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #0B0D13;
+            color: #FFFFFF;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        #musializer_canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            color: #00F0FF;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        #loading img {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="musializer_canvas"></canvas>
+    <div id="loading">
+        <img src="assets/icon.jpg" alt="Musializer-RS Logo">
+        <div>⚡ Loading Musializer-RS (WASM GPU Engine)...</div>
+    </div>
+    <script>
+        const canvas = document.getElementById("musializer_canvas");
+        const observer = new MutationObserver(() => {
+            const loading = document.getElementById("loading");
+            if (loading) loading.style.display = "none";
+        });
+        observer.observe(canvas, { attributes: true });
+    </script>
+</body>
+</html>

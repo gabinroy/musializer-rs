@@ -14,7 +14,8 @@ impl OfflineStepper {
     pub fn new(track: AudioTrack, fps: u32) -> Self {
         let samples_per_frame = (track.sample_rate as f32 / fps as f32).round() as usize;
         let total_audio_frames = track.samples.len() / 2;
-        let total_video_frames = ((total_audio_frames as f32 / samples_per_frame as f32).ceil() as usize).max(1);
+        let total_video_frames =
+            ((total_audio_frames as f32 / samples_per_frame as f32).ceil() as usize).max(1);
 
         Self {
             track,

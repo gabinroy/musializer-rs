@@ -1,2 +1,19 @@
-# Build artifacts
+# Rust Build artifacts
 target/
+Cargo.lock
+
+# WebAssembly (Trunk) distribution
+dist/
+
+# IDE and OS files
+.DS_Store
+*.swp
+*.iml
+.idea/
+.vscode/
+
+# Rendered media & video outputs
+*.mp4
+*.wav
+*.mp3
+*.flac

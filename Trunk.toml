@@ -1,0 +1,10 @@
+[build]
+target = "index.html"
+copy-dir = ["assets"]
+
+[watch]
+watch = ["src", "index.html"]
+
+[serve]
+port = 8080
+open = false

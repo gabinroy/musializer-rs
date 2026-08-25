@@ -3,11 +3,11 @@ use egui::{Align2, Color32, FontId, Rounding, Stroke, Ui};
 pub struct DragDropOverlay;
 
 impl DragDropOverlay {
-    /// Checks for dropped files in egui context or draws a drop hint if empty
+    /// Checks for dropped files or renders an appropriate desktop/mobile empty prompt
     pub fn check_and_render(ui: &mut Ui, is_empty: bool) -> Option<std::path::PathBuf> {
         let mut dropped_path = None;
 
-        // Collect dropped files from OS drag-and-drop
+        // Desktop OS drag-and-drop
         let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
         for file in dropped_files {
             if let Some(path) = file.path {
@@ -15,6 +15,8 @@ impl DragDropOverlay {
                 break;
             }
         }
+
+        let is_mobile = cfg!(any(target_os = "android", target_os = "ios"));
 
         // Draw empty state prompt if no track is loaded
         if is_empty {
@@ -28,16 +30,22 @@ impl DragDropOverlay {
             );
 
             let center = available_rect.center();
+            let prompt_text = if is_mobile {
+                "🎵 Tap 'Load Audio' below\nto select an audio file\n(MP3, WAV, FLAC, OGG, AAC)"
+            } else {
+                "🎵 Drag & Drop Audio File Here\n(MP3, WAV, FLAC, OGG, AAC)\n\nor click 'Load Audio'"
+            };
+
             painter.text(
                 center,
                 Align2::CENTER_CENTER,
-                "🎵 Drag & Drop Audio File Here\n(MP3, WAV, FLAC, OGG, AAC)\n\nor click 'Open File...'",
-                FontId::proportional(20.0),
+                prompt_text,
+                FontId::proportional(if is_mobile { 18.0 } else { 20.0 }),
                 Color32::from_rgb(130, 145, 175),
             );
         }
 
-        // Highlight viewport if user is currently hovering a file over the window
+        // Highlight viewport if user is currently hovering a file over the window (Desktop/Web)
         let is_hovering_file = ui.ctx().input(|i| !i.raw.hovered_files.is_empty());
         if is_hovering_file {
             let screen_rect = ui.ctx().screen_rect();

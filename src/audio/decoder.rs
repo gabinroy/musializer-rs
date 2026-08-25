@@ -1,9 +1,10 @@
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::{CODEC_TYPE_NULL, DecoderOptions};
 use symphonia::core::errors::Error as SymphoniaError;
 use symphonia::core::formats::FormatOptions;
-use symphonia::core::io::MediaSourceStream;
+use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
@@ -12,11 +13,12 @@ pub struct AudioTrack {
     /// Interleaved stereo f32 samples in range [-1.0, 1.0]
     pub samples: Vec<f32>,
     pub sample_rate: u32,
+    #[allow(dead_code)]
     pub channels: u16,
     #[allow(dead_code)]
     pub total_samples: usize,
     pub duration_seconds: f32,
-    pub file_path: PathBuf,
+    pub file_path: Option<PathBuf>,
     pub title: String,
 }
 
@@ -33,13 +35,42 @@ impl AudioTrack {
             .unwrap_or("Unknown Track")
             .to_string();
 
-        let mss = MediaSourceStream::new(Box::new(file), Default::default());
-
         let mut hint = Hint::new();
         if let Some(extension) = path_buf.extension().and_then(|ext| ext.to_str()) {
             hint.with_extension(extension);
         }
 
+        let mss = MediaSourceStream::new(Box::new(file), Default::default());
+        let mut track = Self::decode_media_source(mss, hint, title)?;
+        track.file_path = Some(path_buf);
+        Ok(track)
+    }
+
+    /// Decodes audio data from an in-memory byte buffer (for Web/WASM and mobile Document Pickers)
+    #[allow(dead_code)]
+    pub fn load_from_memory(bytes: Vec<u8>, filename_hint: Option<&str>) -> Result<Self, String> {
+        let title = filename_hint
+            .and_then(|f| Path::new(f).file_stem().and_then(|s| s.to_str()))
+            .unwrap_or("Uploaded Audio")
+            .to_string();
+
+        let mut hint = Hint::new();
+        if let Some(name) = filename_hint {
+            if let Some(ext) = Path::new(name).extension().and_then(|e| e.to_str()) {
+                hint.with_extension(ext);
+            }
+        }
+
+        let cursor = Box::new(Cursor::new(bytes)) as Box<dyn MediaSource>;
+        let mss = MediaSourceStream::new(cursor, Default::default());
+        Self::decode_media_source(mss, hint, title)
+    }
+
+    fn decode_media_source(
+        mss: MediaSourceStream,
+        hint: Hint,
+        title: String,
+    ) -> Result<Self, String> {
         let meta_opts: MetadataOptions = Default::default();
         let fmt_opts: FormatOptions = Default::default();
 
@@ -49,7 +80,7 @@ impl AudioTrack {
 
         let mut format = probed.format;
 
-        // Find the default audio track
+        // Find default audio track
         let track = format
             .tracks()
             .iter()
@@ -80,28 +111,23 @@ impl AudioTrack {
                     let spec = *audio_buf_ref.spec();
                     let channels = spec.channels.count();
 
-                    // Initialize sample buffer with spec if needed
                     let buf = sample_buf.get_or_insert_with(|| {
                         SampleBuffer::<f32>::new(audio_buf_ref.capacity() as u64, spec)
                     });
 
-                    // Ensure capacity
                     if buf.capacity() < audio_buf_ref.frames() {
                         *buf = SampleBuffer::<f32>::new(audio_buf_ref.capacity() as u64, spec);
                     }
 
                     buf.copy_interleaved_ref(audio_buf_ref);
-
                     let raw_samples = buf.samples();
 
                     if channels == 1 {
-                        // Duplicate mono to stereo [L, R, L, R, ...]
                         for &s in raw_samples {
                             stereo_samples.push(s);
                             stereo_samples.push(s);
                         }
                     } else if channels >= 2 {
-                        // Convert multi-channel or stereo directly to stereo
                         for chunk in raw_samples.chunks(channels) {
                             let left = chunk[0];
                             let right = chunk[1];
@@ -134,7 +160,7 @@ impl AudioTrack {
             channels: 2,
             total_samples,
             duration_seconds,
-            file_path: path_buf,
+            file_path: None,
             title,
         })
     }

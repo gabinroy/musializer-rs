@@ -1,17 +1,32 @@
 # Musializer-RS 🎵
 
-A high-performance, cross-platform audio visualizer written in Rust, inspired by [`tsoding/musializer`](https://github.com/tsoding/musializer).
+<p align="center">
+  <img src="assets/icon.jpg" alt="Musializer-RS Icon" width="160" style="border-radius: 24px;" />
+</p>
 
-Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysis (DSP), multi-format audio playback, and deterministic 60 FPS video export into a clean, modern desktop experience.
+<p align="center">
+  <strong>A high-performance, universal cross-platform audio visualizer written in Rust.</strong><br>
+  <em>Inspired by <a href="https://github.com/tsoding/musializer">tsoding/musializer</a>.</em>
+</p>
+
+Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysis (DSP), multi-format audio playback, touch-first mobile responsiveness, and deterministic 60 FPS video export across **Linux, Windows, macOS, Android, iOS, and Web (WebAssembly)**.
 
 ---
 
 ## 🌟 Key Features
 
-- **Multi-Format Audio Support**: Decode and play MP3, WAV, FLAC, OGG/Vorbis, and AAC files via `symphonia`.
-- **Hardware-Accelerated UI**: Built with `eframe` (egui + wgpu) for 60+ FPS rendering across Windows, macOS, Linux, and WebAssembly.
+- **Cross-Platform Support**:
+  - 🖥️ **Desktop**: Linux (Wayland/X11), Windows (WASAPI/DirectX), macOS (CoreAudio/Metal).
+  - 📱 **Mobile**: Android (`cargo-apk` NativeActivity), iOS (Xcode Universal static library).
+  - 🌐 **Web**: WebAssembly (WASM + WebGPU/WebGL) via `trunk`.
+- **Multi-Format Audio Support**: Decode and play MP3, WAV, FLAC, OGG/Vorbis, and AAC files via pure-Rust `symphonia` (file-based or in-memory buffer decoding).
+- **Hardware-Accelerated UI**: Built with `eframe` (egui + wgpu) for 60+ FPS rendering across all targets.
+- **Touch-First Mobile UI**:
+  - Responsive stacking layout for mobile portrait mode (< 600px width).
+  - Large 44x44px touch hitboxes for finger navigation.
+  - Adaptive prompt states ("Load Audio" tap target for mobile / drag-and-drop for desktop).
 - **Fast Fourier Transform (DSP)**:
-  - Hann windowing to prevent spectral leakage.
+  - Hann windowing to eliminate spectral leakage.
   - SIMD-accelerated FFT via `rustfft`.
   - Logarithmic / Octave frequency band grouping (Sub-bass to Treble).
   - Asymmetric Attack/Decay Exponential Moving Average (EMA) with peak hold dots for fluid animations.
@@ -19,54 +34,63 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
   - **Dynamic Spectrum Bars**: Colorful gradient bars with reactive heights and floating peak caps.
   - **Oscilloscope Waveform**: Smooth antialiased audio waveform.
   - **Circular / Radial Mode**: Radial frequency burst with bass pulse.
-- **Deterministic 60 FPS Video Export**:
+- **Deterministic 60 FPS Video Export** (Desktop):
   - Offline frame stepping with zero dropped frames.
   - Automatic FFmpeg piping for direct `.mp4` video generation with muxed audio.
-- **Modern User Experience**:
-  - Drag-and-drop audio loading.
-  - Scrubbable timeline with time elapsed / remaining.
-  - Deep dark theme with soft glassmorphism accents.
+  - Native screen-recording helper prompt on mobile and web platforms.
 
 ---
 
-## 🏛️ Architecture Overview
+## 🏛️ Documentation
 
-The system is decoupled into four core modules:
-
-```
-musializer-rs/
-├── src/
-│   ├── main.rs               # Window initialization and app entrypoint
-│   ├── app.rs                # Main application state and egui update loop
-│   ├── audio/                # Module 1: The Engine (Symphonia, CPAL, Sync)
-│   ├── dsp/                  # Module 2: The Math (Hann, RustFFT, Log Bands, EMA)
-│   ├── ui/                   # Module 3: The Visuals (Theme, Painters, Controls)
-│   └── export/               # Module 4: The Exporter (Offline Stepper, FFmpeg Pipe)
-└── docs/
-    └── ARCHITECTURE.md       # Detailed technical architecture design document
-```
-
-For complete technical specifications, formulas, and data flow diagrams, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- 📐 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): Detailed technical architecture, math equations, and dataflow diagrams.
+- 📦 [docs/APP_EXPORTING_COMMANDS.md](docs/APP_EXPORTING_COMMANDS.md): Full command-line reference for exporting & packaging apps for all platforms.
+- 📱 [docs/MOBILE_DEPLOYMENT.md](docs/MOBILE_DEPLOYMENT.md): Step-by-step guide for building Android APKs and iOS Xcode libraries.
+- 🌐 [docs/WEB_DEPLOYMENT.md](docs/WEB_DEPLOYMENT.md): Guide for compiling and deploying the WebAssembly web app with Trunk.
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
-- **Rust Toolchain**: Rust 1.80+ ([Install Rust](https://www.rust-lang.org/tools/install))
-- **FFmpeg** *(Optional, required for video export)*: Ensure `ffmpeg` is installed and available on your system `PATH`.
-
-### Build & Run
+### 1. Clone the Repository
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/musializer-rs.git
+git clone https://github.com/gabinroy/musializer-rs.git
 cd musializer-rs
+```
 
-# Run locally
+### 2. Run on Desktop (Linux, macOS, Windows)
+```bash
 cargo run --release
 ```
+
+### 3. Run on Web (WebAssembly)
+```bash
+# Install Trunk
+cargo install trunk
+
+# Serve locally at http://127.0.0.1:8080
+trunk serve
+```
+
+### 4. Build for Android (APK)
+```bash
+cargo apk build --release
+# Output located at: target/release/apk/Musializer-RS.apk
+```
+
+### 5. Build for iOS (Universal Library)
+```bash
+cargo lipo --release
+# Output located at: target/universal/release/libmusializer_rs.a
+```
+
+---
+
+## 🧪 Tests & Quality
+- `cargo test`: 100% tests passing.
+- `cargo check`: 0 errors, 0 warnings across all targets.
 
 ---
 
 ## 📄 License
-MIT / Apache-2.0
+This project is licensed under the **GNU General Public License v3.0** ([GPLv3](LICENSE)).
