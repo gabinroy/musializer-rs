@@ -10,7 +10,7 @@ use crate::dsp::{EmaSmoother, FftProcessor, FrequencyBands};
 use crate::export::renderer::OffscreenRasterizer;
 use crate::export::stepper::OfflineStepper;
 use crate::ui::theme::ColorTheme;
-use crate::ui::visualizer::VisualizerMode;
+use crate::ui::visualizer::{CircleCenterDisplay, VisualizerMode};
 
 #[derive(Clone, Debug)]
 pub struct ExportConfig {
@@ -21,6 +21,8 @@ pub struct ExportConfig {
     pub mode: VisualizerMode,
     pub theme: ColorTheme,
     pub num_bands: usize,
+    pub center_display: CircleCenterDisplay,
+    pub center_image: Option<Arc<image::RgbaImage>>,
 }
 
 impl Default for ExportConfig {
@@ -33,6 +35,8 @@ impl Default for ExportConfig {
             mode: VisualizerMode::SpectrumBars,
             theme: ColorTheme::CyberNeon,
             num_bands: 80,
+            center_display: CircleCenterDisplay::None,
+            center_image: None,
         }
     }
 }
@@ -222,6 +226,8 @@ fn run_export_thread(
             smoother.values(),
             smoother.peaks(),
             &pcm_window,
+            config.center_display,
+            config.center_image.as_deref(),
         );
 
         // Write raw RGBA frame to FFmpeg stdin

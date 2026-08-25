@@ -250,12 +250,8 @@ impl VisualizerWidget {
                 } else {
                     255
                 };
-                let tint = Color32::from_rgba_unmultiplied(
-                    img_alpha,
-                    img_alpha,
-                    img_alpha,
-                    img_alpha,
-                );
+                let tint =
+                    Color32::from_rgba_unmultiplied(img_alpha, img_alpha, img_alpha, img_alpha);
                 painter.image(tex.id(), img_rect, uv, tint);
             }
         }
@@ -285,7 +281,10 @@ impl VisualizerWidget {
                 spinner_color.b(),
                 alpha,
             );
-            painter.add(egui::Shape::line(arc_pts, Stroke::new(3.5_f32, spinner_col)));
+            painter.add(egui::Shape::line(
+                arc_pts,
+                Stroke::new(3.5_f32, spinner_col),
+            ));
 
             // Outer pulse ring
             let pulse_r = core_radius * (1.0 + (1.0 - prog) * 0.15);

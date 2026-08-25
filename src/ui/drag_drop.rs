@@ -1,6 +1,4 @@
-use egui::{
-    Align, Align2, Button, Color32, FontId, Layout, RichText, Rounding, Stroke, Ui,
-};
+use egui::{Align, Align2, Button, Color32, FontId, Layout, RichText, Rounding, Stroke, Ui};
 
 pub struct DragDropOverlay;
 
@@ -65,10 +63,7 @@ impl DragDropOverlay {
 
             child_ui.add_space((drop_area_rect.height() * 0.22).max(10.0));
 
-            child_ui.label(
-                RichText::new("🎵")
-                    .size(if is_mobile { 36.0 } else { 44.0 }),
-            );
+            child_ui.label(RichText::new("🎵").size(if is_mobile { 36.0 } else { 44.0 }));
             child_ui.add_space(8.0);
 
             let main_title = if is_mobile {
@@ -147,4 +142,3 @@ impl DragDropOverlay {
         dropped_path
     }
 }
-

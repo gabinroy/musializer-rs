@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
 use eframe::egui;
@@ -34,6 +35,7 @@ pub struct MusializerApp {
     // Circular visualizer center options
     circle_center_display: CircleCenterDisplay,
     circle_center_texture: Option<TextureHandle>,
+    raw_cover_image: Option<Arc<image::RgbaImage>>,
     image_loading_timer: Option<Instant>,
 
     last_frame_time: Instant,
@@ -69,7 +71,7 @@ impl MusializerApp {
         let smoother = EmaSmoother::new(num_bands, 0.85, 0.15);
 
         // Load default embedded logo texture for center cover art
-        let circle_center_texture = load_default_logo_texture(&cc.egui_ctx);
+        let (circle_center_texture, raw_cover_image) = load_default_logo(&cc.egui_ctx);
 
         Self {
             player,
@@ -85,6 +87,7 @@ impl MusializerApp {
             visual_gain: 1.2,
             circle_center_display: CircleCenterDisplay::TimeElapsed,
             circle_center_texture,
+            raw_cover_image,
             image_loading_timer: None,
 
             last_frame_time: Instant::now(),
@@ -147,15 +150,13 @@ impl MusializerApp {
     pub fn load_custom_cover_image_from_bytes(&mut self, ctx: &egui::Context, bytes: &[u8]) {
         match image::load_from_memory(bytes) {
             Ok(img) => {
-                let color_img = make_circular_color_image(img);
+                let (color_img, rgba_img) = make_circular_color_and_rgba_image(img);
+                self.raw_cover_image = Some(Arc::new(rgba_img));
                 if let Some(tex) = &mut self.circle_center_texture {
                     tex.set(color_img, TextureOptions::LINEAR);
                 } else {
-                    self.circle_center_texture = Some(ctx.load_texture(
-                        "custom_cover",
-                        color_img,
-                        TextureOptions::LINEAR,
-                    ));
+                    self.circle_center_texture =
+                        Some(ctx.load_texture("custom_cover", color_img, TextureOptions::LINEAR));
                 }
                 self.circle_center_display = CircleCenterDisplay::CustomCoverArt;
                 self.image_loading_timer = Some(Instant::now());
@@ -183,12 +184,16 @@ impl MusializerApp {
     }
 }
 
-fn make_circular_color_image(dynamic_img: image::DynamicImage) -> ColorImage {
+fn make_circular_color_and_rgba_image(
+    dynamic_img: image::DynamicImage,
+) -> (ColorImage, image::RgbaImage) {
     let (w, h) = (dynamic_img.width(), dynamic_img.height());
     let size = w.min(h);
     let x_offset = (w - size) / 2;
     let y_offset = (h - size) / 2;
-    let cropped = dynamic_img.crop_imm(x_offset, y_offset, size, size).into_rgba8();
+    let cropped = dynamic_img
+        .crop_imm(x_offset, y_offset, size, size)
+        .into_rgba8();
 
     let mut raw_pixels = cropped.into_raw();
     let radius = size as f32 / 2.0;
@@ -212,20 +217,22 @@ fn make_circular_color_image(dynamic_img: image::DynamicImage) -> ColorImage {
         }
     }
 
-    ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw_pixels)
+    let rgba_img = image::RgbaImage::from_raw(size, size, raw_pixels.clone()).unwrap_or_default();
+    let color_img = ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw_pixels);
+
+    (color_img, rgba_img)
 }
 
-fn load_default_logo_texture(ctx: &egui::Context) -> Option<TextureHandle> {
+fn load_default_logo(
+    ctx: &egui::Context,
+) -> (Option<TextureHandle>, Option<Arc<image::RgbaImage>>) {
     let icon_bytes = include_bytes!("../assets/icon.png");
     if let Ok(img) = image::load_from_memory(icon_bytes) {
-        let color_img = make_circular_color_image(img);
-        return Some(ctx.load_texture(
-            "default_logo_texture",
-            color_img,
-            TextureOptions::LINEAR,
-        ));
+        let (color_img, rgba_img) = make_circular_color_and_rgba_image(img);
+        let tex = ctx.load_texture("default_logo_texture", color_img, TextureOptions::LINEAR);
+        return (Some(tex), Some(Arc::new(rgba_img)));
     }
-    None
+    (None, None)
 }
 
 impl eframe::App for MusializerApp {
@@ -297,7 +304,9 @@ impl eframe::App for MusializerApp {
             };
 
             // Drag and drop handler (Desktop/Web)
-            if let Some(dropped_path) = DragDropOverlay::check_and_render(ui, is_empty, &mut on_open_file_click) {
+            if let Some(dropped_path) =
+                DragDropOverlay::check_and_render(ui, is_empty, &mut on_open_file_click)
+            {
                 self.load_audio_file(dropped_path);
             }
 
@@ -530,6 +539,8 @@ impl eframe::App for MusializerApp {
                                                 mode: self.mode,
                                                 theme: self.theme,
                                                 num_bands: self.num_bands,
+                                                center_display: self.circle_center_display,
+                                                center_image: self.raw_cover_image.clone(),
                                             };
 
                                             let _ = self

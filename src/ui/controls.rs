@@ -220,7 +220,10 @@ impl TransportControls {
                     // Extra row for sensitivity boost & circular options on mobile
                     ui.horizontal_wrapped(|ui| {
                         ui.label(RichText::new("⚡ Boost:").size(12.0));
-                        ui.add_sized([90.0, 24.0], Slider::new(visual_gain, 0.5..=3.5).show_value(true));
+                        ui.add_sized(
+                            [90.0, 24.0],
+                            Slider::new(visual_gain, 0.5..=3.5).show_value(true),
+                        );
 
                         if *current_mode == VisualizerMode::Circular {
                             ui.separator();
@@ -228,11 +231,31 @@ impl TransportControls {
                             egui::ComboBox::from_id_source("circle_center_mobile")
                                 .selected_text(circle_center_display.name())
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(circle_center_display, CircleCenterDisplay::None, CircleCenterDisplay::None.name());
-                                    ui.selectable_value(circle_center_display, CircleCenterDisplay::TimeElapsed, CircleCenterDisplay::TimeElapsed.name());
-                                    ui.selectable_value(circle_center_display, CircleCenterDisplay::TimeRemaining, CircleCenterDisplay::TimeRemaining.name());
-                                    ui.selectable_value(circle_center_display, CircleCenterDisplay::TrackTitle, CircleCenterDisplay::TrackTitle.name());
-                                    ui.selectable_value(circle_center_display, CircleCenterDisplay::CustomCoverArt, CircleCenterDisplay::CustomCoverArt.name());
+                                    ui.selectable_value(
+                                        circle_center_display,
+                                        CircleCenterDisplay::None,
+                                        CircleCenterDisplay::None.name(),
+                                    );
+                                    ui.selectable_value(
+                                        circle_center_display,
+                                        CircleCenterDisplay::TimeElapsed,
+                                        CircleCenterDisplay::TimeElapsed.name(),
+                                    );
+                                    ui.selectable_value(
+                                        circle_center_display,
+                                        CircleCenterDisplay::TimeRemaining,
+                                        CircleCenterDisplay::TimeRemaining.name(),
+                                    );
+                                    ui.selectable_value(
+                                        circle_center_display,
+                                        CircleCenterDisplay::TrackTitle,
+                                        CircleCenterDisplay::TrackTitle.name(),
+                                    );
+                                    ui.selectable_value(
+                                        circle_center_display,
+                                        CircleCenterDisplay::CustomCoverArt,
+                                        CircleCenterDisplay::CustomCoverArt.name(),
+                                    );
                                 });
 
                             if *circle_center_display == CircleCenterDisplay::CustomCoverArt {
@@ -259,7 +282,8 @@ impl TransportControls {
 
                             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                                 let is_playing = player.is_playing();
-                                let play_btn_text = if is_playing { "⏸ Pause" } else { "▶ Play" };
+                                let play_btn_text =
+                                    if is_playing { "⏸ Pause" } else { "▶ Play" };
                                 let play_btn_color = if is_playing {
                                     Color32::from_rgb(255, 120, 120)
                                 } else {
@@ -270,7 +294,9 @@ impl TransportControls {
                                     .add_sized(
                                         [80.0, 32.0],
                                         Button::new(
-                                            RichText::new(play_btn_text).color(play_btn_color).strong(),
+                                            RichText::new(play_btn_text)
+                                                .color(play_btn_color)
+                                                .strong(),
                                         ),
                                     )
                                     .clicked()
@@ -335,7 +361,10 @@ impl TransportControls {
 
                                 // Visual gain / sensitivity slider
                                 ui.label(RichText::new("⚡ Boost:").size(12.0));
-                                ui.add_sized([65.0, 18.0], Slider::new(visual_gain, 0.5..=3.5).show_value(true));
+                                ui.add_sized(
+                                    [65.0, 18.0],
+                                    Slider::new(visual_gain, 0.5..=3.5).show_value(true),
+                                );
 
                                 // Center Circle Customization
                                 if *current_mode == VisualizerMode::Circular {
@@ -345,14 +374,35 @@ impl TransportControls {
                                         .selected_text(circle_center_display.name())
                                         .width(115.0)
                                         .show_ui(ui, |ui| {
-                                            ui.selectable_value(circle_center_display, CircleCenterDisplay::None, CircleCenterDisplay::None.name());
-                                            ui.selectable_value(circle_center_display, CircleCenterDisplay::TimeElapsed, CircleCenterDisplay::TimeElapsed.name());
-                                            ui.selectable_value(circle_center_display, CircleCenterDisplay::TimeRemaining, CircleCenterDisplay::TimeRemaining.name());
-                                            ui.selectable_value(circle_center_display, CircleCenterDisplay::TrackTitle, CircleCenterDisplay::TrackTitle.name());
-                                            ui.selectable_value(circle_center_display, CircleCenterDisplay::CustomCoverArt, CircleCenterDisplay::CustomCoverArt.name());
+                                            ui.selectable_value(
+                                                circle_center_display,
+                                                CircleCenterDisplay::None,
+                                                CircleCenterDisplay::None.name(),
+                                            );
+                                            ui.selectable_value(
+                                                circle_center_display,
+                                                CircleCenterDisplay::TimeElapsed,
+                                                CircleCenterDisplay::TimeElapsed.name(),
+                                            );
+                                            ui.selectable_value(
+                                                circle_center_display,
+                                                CircleCenterDisplay::TimeRemaining,
+                                                CircleCenterDisplay::TimeRemaining.name(),
+                                            );
+                                            ui.selectable_value(
+                                                circle_center_display,
+                                                CircleCenterDisplay::TrackTitle,
+                                                CircleCenterDisplay::TrackTitle.name(),
+                                            );
+                                            ui.selectable_value(
+                                                circle_center_display,
+                                                CircleCenterDisplay::CustomCoverArt,
+                                                CircleCenterDisplay::CustomCoverArt.name(),
+                                            );
                                         });
 
-                                    if *circle_center_display == CircleCenterDisplay::CustomCoverArt {
+                                    if *circle_center_display == CircleCenterDisplay::CustomCoverArt
+                                    {
                                         if ui.button("🖼 Image...").clicked() {
                                             *on_load_center_image = true;
                                         }
