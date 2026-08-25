@@ -20,20 +20,20 @@ pub fn wasm_main() {
 
     wasm_bindgen_futures::spawn_local(async {
         let runner = eframe::WebRunner::new();
-        let res = runner
+        let _ = runner
             .start(
                 "musializer_canvas",
                 web_options,
-                Box::new(|cc| Ok(Box::new(MusializerApp::new(cc)))),
+                Box::new(|cc| {
+                    // Remove the loading screen overlay immediately upon initialization
+                    if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+                        if let Some(loading) = doc.get_element_by_id("loading") {
+                            loading.remove();
+                        }
+                    }
+                    Ok(Box::new(MusializerApp::new(cc)))
+                }),
             )
             .await;
-
-        if res.is_ok() {
-            if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
-                if let Some(loading) = doc.get_element_by_id("loading") {
-                    loading.remove();
-                }
-            }
-        }
     });
 }

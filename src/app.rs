@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Instant;
+use web_time::Instant;
 
 use eframe::egui;
 #[allow(unused_imports)]
