@@ -212,7 +212,7 @@ fn run_export_thread(
 
         // Run DSP on deterministic frame window
         let magnitudes = fft.process(&pcm_window);
-        let raw_bands = bands_mapper.aggregate(&magnitudes);
+        let raw_bands = bands_mapper.aggregate(&magnitudes, 1.2);
         smoother.update(&raw_bands, dt);
 
         // Rasterize frame

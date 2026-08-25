@@ -3,14 +3,18 @@ use std::time::Instant;
 
 use eframe::egui;
 #[allow(unused_imports)]
-use egui::{CentralPanel, Color32, ProgressBar, RichText, TopBottomPanel, Window};
+use egui::{
+    CentralPanel, Color32, ColorImage, ProgressBar, RichText, TextureHandle, TextureOptions,
+    TopBottomPanel, Window,
+};
 
 use crate::audio::{AudioPlayer, AudioSync, AudioTrack};
 use crate::dsp::{EmaSmoother, FftProcessor, FrequencyBands};
 #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 use crate::export::{ExportConfig, VideoExporter};
 use crate::ui::{
-    ColorTheme, ControlPanel, DragDropOverlay, VisualizerMode, VisualizerPainter, apply_theme,
+    CircleCenterDisplay, ColorTheme, DragDropOverlay, TransportControls, VisualizerMode,
+    VisualizerWidget, apply_theme,
 };
 
 pub struct MusializerApp {
@@ -23,6 +27,13 @@ pub struct MusializerApp {
     theme: ColorTheme,
     num_bands: usize,
     fft_size: usize,
+
+    // DSP dynamics & visual gain
+    visual_gain: f32,
+
+    // Circular visualizer center options
+    circle_center_display: CircleCenterDisplay,
+    circle_center_texture: Option<TextureHandle>,
 
     last_frame_time: Instant,
     cached_wave: Vec<f32>,
@@ -56,6 +67,9 @@ impl MusializerApp {
         let bands_mapper = FrequencyBands::new(num_bands, fft_size, sample_rate);
         let smoother = EmaSmoother::new(num_bands, 0.85, 0.15);
 
+        // Load default embedded logo texture for center cover art
+        let circle_center_texture = load_default_logo_texture(&cc.egui_ctx);
+
         Self {
             player,
             fft_processor,
@@ -66,6 +80,10 @@ impl MusializerApp {
             theme: ColorTheme::CyberNeon,
             num_bands,
             fft_size,
+
+            visual_gain: 1.2,
+            circle_center_display: CircleCenterDisplay::TimeElapsed,
+            circle_center_texture,
 
             last_frame_time: Instant::now(),
             cached_wave: vec![0.0; fft_size],
@@ -108,6 +126,21 @@ impl MusializerApp {
         }
     }
 
+    #[allow(unused_variables)]
+    pub fn load_custom_cover_image(&mut self, ctx: &egui::Context, path: PathBuf) {
+        #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+        {
+            if let Ok(bytes) = std::fs::read(&path) {
+                if let Ok(img) = image::load_from_memory(&bytes) {
+                    let color_img = make_circular_color_image(img);
+                    self.circle_center_texture =
+                        Some(ctx.load_texture("custom_cover", color_img, TextureOptions::LINEAR));
+                    self.circle_center_display = CircleCenterDisplay::CustomCoverArt;
+                }
+            }
+        }
+    }
+
     fn load_track_internal(&mut self, track: AudioTrack) {
         let sample_rate = track.sample_rate;
         self.bands_mapper = FrequencyBands::new(self.num_bands, self.fft_size, sample_rate);
@@ -124,6 +157,56 @@ impl MusializerApp {
     }
 }
 
+#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+fn make_circular_color_image(dynamic_img: image::DynamicImage) -> ColorImage {
+    let (w, h) = (dynamic_img.width(), dynamic_img.height());
+    let size = w.min(h);
+    let x_offset = (w - size) / 2;
+    let y_offset = (h - size) / 2;
+    let cropped = dynamic_img.crop_imm(x_offset, y_offset, size, size).into_rgba8();
+
+    let mut raw_pixels = cropped.into_raw();
+    let radius = size as f32 / 2.0;
+    let center = radius;
+
+    for y in 0..size {
+        for x in 0..size {
+            let dx = x as f32 + 0.5 - center;
+            let dy = y as f32 + 0.5 - center;
+            let dist = (dx * dx + dy * dy).sqrt();
+
+            let idx = ((y * size + x) * 4) as usize;
+            if dist >= radius {
+                raw_pixels[idx + 3] = 0; // Fully transparent outside the circular disc
+            } else if dist >= radius - 1.5 {
+                // Anti-aliased smooth edge
+                let alpha_factor = (radius - dist) / 1.5;
+                raw_pixels[idx + 3] =
+                    ((raw_pixels[idx + 3] as f32) * alpha_factor.clamp(0.0, 1.0)) as u8;
+            }
+        }
+    }
+
+    ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw_pixels)
+}
+
+#[allow(unused_variables)]
+fn load_default_logo_texture(ctx: &egui::Context) -> Option<TextureHandle> {
+    #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+    {
+        let icon_bytes = include_bytes!("../assets/icon.png");
+        if let Ok(img) = image::load_from_memory(icon_bytes) {
+            let color_img = make_circular_color_image(img);
+            return Some(ctx.load_texture(
+                "default_logo_texture",
+                color_img,
+                TextureOptions::LINEAR,
+            ));
+        }
+    }
+    None
+}
+
 impl eframe::App for MusializerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Continuous repaint for 60+ FPS fluid rendering
@@ -134,20 +217,48 @@ impl eframe::App for MusializerApp {
         self.last_frame_time = now;
 
         let mut on_export_click = false;
+        let mut on_load_center_image = false;
         let mut on_open_file_click = false;
+
+        let is_exporting = {
+            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+            {
+                self.exporter.is_exporting()
+            }
+            #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
+            {
+                false
+            }
+        };
+
+        let export_prog = {
+            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+            {
+                self.exporter.get_progress()
+            }
+            #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
+            {
+                0.0
+            }
+        };
 
         // Bottom Controls Panel
         TopBottomPanel::bottom("bottom_controls_panel")
             .min_height(90.0)
             .show(ctx, |ui| {
                 if let Ok(player) = &mut self.player {
-                    ControlPanel::render(
+                    TransportControls::show(
                         ui,
                         player,
                         &mut self.mode,
                         &mut self.theme,
-                        &mut on_export_click,
+                        &mut self.visual_gain,
+                        &mut self.circle_center_display,
+                        &mut on_load_center_image,
                         &mut on_open_file_click,
+                        &mut on_export_click,
+                        is_exporting,
+                        export_prog,
                     );
                 } else if let Err(err) = &self.player {
                     ui.colored_label(
@@ -165,13 +276,21 @@ impl eframe::App for MusializerApp {
             };
 
             // Drag and drop handler (Desktop/Web)
-            if let Some(dropped_path) = DragDropOverlay::check_and_render(ui, is_empty) {
+            if let Some(dropped_path) = DragDropOverlay::check_and_render(ui, is_empty, &mut on_open_file_click) {
                 self.load_audio_file(dropped_path);
             }
+
+            let mut current_time = 0.0;
+            let mut total_time = 0.0;
+            let mut track_title: Option<String> = None;
 
             // Audio DSP computation
             if let Ok(player) = &self.player {
                 if let Some(track) = player.track() {
+                    current_time = player.current_time_seconds() as f64;
+                    total_time = player.duration_seconds() as f64;
+                    track_title = Some(track.title.clone());
+
                     let current_frame = player.current_frame();
                     let pcm_chunk =
                         AudioSync::extract_pcm_window(&track.samples, current_frame, self.fft_size);
@@ -180,7 +299,7 @@ impl eframe::App for MusializerApp {
 
                     if player.is_playing() {
                         let mags = self.fft_processor.process(&pcm_chunk);
-                        let raw_bands = self.bands_mapper.aggregate(&mags);
+                        let raw_bands = self.bands_mapper.aggregate(&mags, self.visual_gain);
                         self.smoother.update(&raw_bands, dt);
                     } else {
                         let zeros = vec![0.0f32; self.num_bands];
@@ -191,7 +310,7 @@ impl eframe::App for MusializerApp {
 
             let available_rect = ui.available_rect_before_wrap();
             if available_rect.width() > 10.0 && available_rect.height() > 10.0 && !is_empty {
-                VisualizerPainter::paint(
+                VisualizerWidget::show(
                     ui.painter(),
                     available_rect,
                     self.mode,
@@ -199,6 +318,11 @@ impl eframe::App for MusializerApp {
                     self.smoother.values(),
                     self.smoother.peaks(),
                     &self.cached_wave,
+                    self.circle_center_display,
+                    self.circle_center_texture.as_ref(),
+                    current_time,
+                    total_time,
+                    track_title.as_deref(),
                 );
             }
 
@@ -208,15 +332,31 @@ impl eframe::App for MusializerApp {
             }
         });
 
-        // Trigger file picker
+        // Trigger audio file picker
         if on_open_file_click {
             #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
             {
-                if let Some(file_path) = rfd::FileDialog::new()
-                    .add_filter("Audio Files", &["mp3", "wav", "flac", "ogg", "aac", "m4a"])
+                if let Some(audio_path) = rfd::FileDialog::new()
+                    .add_filter(
+                        "Audio Files",
+                        &["mp3", "wav", "flac", "ogg", "aac", "m4a", "aiff"],
+                    )
                     .pick_file()
                 {
-                    self.load_audio_file(file_path);
+                    self.load_audio_file(audio_path);
+                }
+            }
+        }
+
+        // Trigger custom center cover image picker
+        if on_load_center_image {
+            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+            {
+                if let Some(img_path) = rfd::FileDialog::new()
+                    .add_filter("Images", &["png", "jpg", "jpeg", "webp", "bmp"])
+                    .pick_file()
+                {
+                    self.load_custom_cover_image(ctx, img_path);
                 }
             }
         }
@@ -228,12 +368,13 @@ impl eframe::App for MusializerApp {
 
         // Modal Dialog
         if self.show_export_modal {
-            let mut open = self.show_export_modal;
+            let mut is_open = true;
+            let mut close_modal = false;
 
             #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
             {
                 Window::new("🎬 Export Video")
-                    .open(&mut open)
+                    .open(&mut is_open)
                     .resizable(false)
                     .collapsible(false)
                     .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
@@ -252,7 +393,13 @@ impl eframe::App for MusializerApp {
                             ui.add(ProgressBar::new(prog).show_percentage());
                             ui.add_space(12.0);
 
-                            if ui.button(RichText::new("Cancel Export").color(Color32::from_rgb(255, 100, 100))).clicked() {
+                            if ui
+                                .button(
+                                    RichText::new("Cancel Export")
+                                        .color(Color32::from_rgb(255, 100, 100)),
+                                )
+                                .clicked()
+                            {
                                 self.exporter.cancel();
                             }
                         } else {
@@ -262,63 +409,88 @@ impl eframe::App for MusializerApp {
 
                             ui.horizontal(|ui| {
                                 ui.label("Resolution:");
-                                ui.selectable_value(&mut self.export_width, 1920, "1080p (1920x1080)");
-                                ui.selectable_value(&mut self.export_width, 1280, "720p (1280x720)");
-                                if self.export_width == 1920 {
-                                    self.export_height = 1080;
-                                } else {
-                                    self.export_height = 720;
-                                }
+                                egui::ComboBox::from_id_source("export_res_combo")
+                                    .selected_text(format!(
+                                        "{}x{}",
+                                        self.export_width, self.export_height
+                                    ))
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(
+                                            &mut self.export_width,
+                                            1920,
+                                            "1920x1080 (1080p FHD)",
+                                        );
+                                        if self.export_width == 1920 {
+                                            self.export_height = 1080;
+                                        }
+                                        ui.selectable_value(
+                                            &mut self.export_width,
+                                            1280,
+                                            "1280x720 (720p HD)",
+                                        );
+                                        if self.export_width == 1280 {
+                                            self.export_height = 720;
+                                        }
+                                    });
                             });
 
                             ui.horizontal(|ui| {
                                 ui.label("Framerate:");
-                                ui.selectable_value(&mut self.export_fps, 60, "60 FPS");
-                                ui.selectable_value(&mut self.export_fps, 30, "30 FPS");
+                                egui::ComboBox::from_id_source("export_fps_combo")
+                                    .selected_text(format!("{} FPS", self.export_fps))
+                                    .show_ui(ui, |ui| {
+                                        ui.selectable_value(
+                                            &mut self.export_fps,
+                                            60,
+                                            "60 FPS (Ultra Smooth)",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.export_fps,
+                                            30,
+                                            "30 FPS (Standard)",
+                                        );
+                                    });
                             });
 
                             ui.horizontal(|ui| {
-                                ui.label("Output filename:");
+                                ui.label("Output:");
                                 ui.text_edit_singleline(&mut self.export_output_path);
                             });
 
                             ui.add_space(12.0);
 
-                            let ffmpeg_ok = VideoExporter::is_ffmpeg_available();
-                            if !ffmpeg_ok {
-                                ui.colored_label(
-                                    Color32::from_rgb(255, 140, 60),
-                                    "⚠️ FFmpeg not detected on PATH. Install FFmpeg to enable video export.",
-                                );
-                            }
-
                             ui.horizontal(|ui| {
-                                let can_export = ffmpeg_ok && self.player.as_ref().map(|p| p.track().is_some()).unwrap_or(false);
-
-                                if ui.add_enabled(can_export, egui::Button::new(RichText::new("🚀 Start Export").color(Color32::from_rgb(0, 240, 255)).strong())).clicked() {
-                                    if let Ok(player) = &mut self.player {
+                                if ui
+                                    .button(
+                                        RichText::new("🚀 Start Export")
+                                            .color(Color32::from_rgb(0, 240, 255))
+                                            .strong(),
+                                    )
+                                    .clicked()
+                                {
+                                    if let Ok(player) = &self.player {
                                         if let Some(track) = player.track() {
-                                            player.pause();
-                                            let track_clone = (**track).clone();
                                             let config = ExportConfig {
-                                                output_path: PathBuf::from(&self.export_output_path),
                                                 width: self.export_width,
                                                 height: self.export_height,
                                                 fps: self.export_fps,
+                                                output_path: PathBuf::from(
+                                                    &self.export_output_path,
+                                                ),
                                                 mode: self.mode,
                                                 theme: self.theme,
                                                 num_bands: self.num_bands,
                                             };
 
-                                            if let Err(e) = self.exporter.start_export(track_clone, config) {
-                                                self.error_msg = Some(e);
-                                            }
+                                            let _ = self
+                                                .exporter
+                                                .start_export((**track).clone(), config);
                                         }
                                     }
                                 }
 
                                 if ui.button("Close").clicked() {
-                                    self.show_export_modal = false;
+                                    close_modal = true;
                                 }
                             });
                         }
@@ -327,30 +499,27 @@ impl eframe::App for MusializerApp {
 
             #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
             {
-                Window::new("🎥 Screen Recording Info")
-                    .open(&mut open)
+                Window::new("📱 Record Video Info")
+                    .open(&mut is_open)
                     .resizable(false)
                     .collapsible(false)
                     .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
                     .show(ctx, |ui| {
-                        ui.set_min_width(300.0);
+                        ui.set_min_width(320.0);
+                        ui.label(RichText::new("Native Screen Recording").strong());
                         ui.add_space(6.0);
-                        ui.heading("High-Definition Video Recording");
-                        ui.add_space(8.0);
-                        ui.label("To record high-quality 60 FPS video on mobile / browser:");
-                        ui.add_space(6.0);
-                        ui.label("1. Use your device's built-in Screen Recorder (Control Center on iOS, Quick Settings on Android, or OS screen recorder).");
-                        ui.label("2. Start audio playback in Musializer-RS.");
-                        ui.label("3. Stop screen recording when done to save your MP4.");
+                        ui.label(
+                            "To capture high-definition visualizer video on Mobile and Web, \
+                            use your operating system's built-in 60 FPS screen recorder (e.g. iOS Control Center / Android Screen Recorder / Browser capture).",
+                        );
                         ui.add_space(12.0);
-
-                        if ui.button("Got it!").clicked() {
-                            self.show_export_modal = false;
+                        if ui.button("Got it").clicked() {
+                            close_modal = true;
                         }
                     });
             }
 
-            self.show_export_modal = open;
+            self.show_export_modal = is_open && !close_modal;
         }
     }
 }

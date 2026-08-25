@@ -89,15 +89,31 @@ The DSP module converts raw temporal audio waveforms into human-perceptible, dyn
 - **Computation**: Executes forward complex FFT on windowed samples $x[n] \to X[k]$:
   $$\text{Magnitude}[k] = \sqrt{\text{Re}(X[k])^2 + \text{Im}(X[k])^2}$$
 
-### 2.3 Frequency Band Binning (`src/dsp/frequency.rs`)
+### 2.3 Frequency Band Binning & Dynamic Range Compression (`src/dsp/frequency.rs`)
 - **Logarithmic Mapping**: Human hearing perceives pitch logarithmically. The linear FFT bins are clustered into $M$ visual frequency bands (e.g. 64 to 128 bars) spaced exponentially between $f_{\text{min}} = 20\text{ Hz}$ and $f_{\text{max}} = 20{,}000\text{ Hz}$.
-- **Bands**: Sub-bass (20–60 Hz), Bass (60–250 Hz), Low-mids (250–500 Hz), Midrange (500–2 kHz), High-mids (2–6 kHz), Treble (6–20 kHz).
+- **Dynamic Range Compression**: For quiet audio passages or low-energy recordings, raw magnitudes are compressed using power-law non-linear scaling:
+  $$y = (4.0 \cdot x \cdot \text{gain} \cdot \text{boost}_{\text{treble}})^{0.55}$$
+  This expands subtle acoustic details and lifts quiet intro passages while gracefully compressing loud transients to prevent clipping.
+- **Visual Sensitivity Boost**: Adjustable runtime gain factor ($\text{gain} \in [0.5, 3.5]$) accessible from the UI transport bar.
 
 ### 2.4 Temporal Dynamics & Smoothing (`src/dsp/ema.rs`)
 - **Algorithm**: Dual-rate Exponential Moving Average (EMA) with peak hold:
   - **Attack ($\alpha_{\text{attack}} \approx 0.85$)**: Instant response to loud transient beats.
   - **Decay ($\alpha_{\text{decay}} \approx 0.15$)**: Smooth, graceful gravity falloff to prevent visual flickering.
   - **Peak Hold**: Floating top cap dots with configurable gravity falloff.
+
+---
+
+## 3. Graphics & Visualizer Engine
+
+### 3.1 Visualizer Modes
+- **Spectrum Bars**: Frequency bars with reactive heights, multi-color gradient palettes, and floating peak hold dots.
+- **Oscilloscope Waveform**: Continuous smooth antialiased waveform line with dynamic scaling.
+- **Circular Pulse**: Radial frequency burst with bass pulse and a customizable center hub:
+  - **Custom Cover Art / Album Art**: Displays user-selected image or embedded application logo.
+  - **Time Elapsed**: Displays live timestamp (e.g., `01:45 / 03:30`) with glowing typography.
+  - **Time Remaining**: Displays countdown timestamp (e.g., `-01:45 REMAINING`).
+  - **Track Title**: Displays formatted track title and live timestamp.
 
 ---
 

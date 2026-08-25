@@ -30,10 +30,11 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
   - SIMD-accelerated FFT via `rustfft`.
   - Logarithmic / Octave frequency band grouping (Sub-bass to Treble).
   - Asymmetric Attack/Decay Exponential Moving Average (EMA) with peak hold dots for fluid animations.
+  - **Dynamic Range Compression & Sensitivity Boost**: Power-law scaling and adjustable `0.5x` to `3.5x` gain slider to ensure quiet intros and acoustic tracks generate rich, energetic spectrum bars.
 - **Multiple Visualizer Modes**:
   - **Dynamic Spectrum Bars**: Colorful gradient bars with reactive heights and floating peak caps.
   - **Oscilloscope Waveform**: Smooth antialiased audio waveform.
-  - **Circular / Radial Mode**: Radial frequency burst with bass pulse.
+  - **Circular / Radial Pulse**: Radial frequency burst with bass pulse and customizable center hub (Custom Cover Art / Album Image, Live Elapsed Time, Remaining Time Countdown, or Song Title).
 - **Deterministic 60 FPS Video Export** (Desktop):
   - Offline frame stepping with zero dropped frames.
   - Automatic FFmpeg piping for direct `.mp4` video generation with muxed audio.

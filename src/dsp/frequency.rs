@@ -34,8 +34,8 @@ impl FrequencyBands {
         }
     }
 
-    /// Aggregates linear FFT magnitude bins into visual frequency bands.
-    pub fn aggregate(&self, magnitudes: &[f32]) -> Vec<f32> {
+    /// Aggregates linear FFT magnitude bins into visual frequency bands with dynamic range compression and gain boost.
+    pub fn aggregate(&self, magnitudes: &[f32], gain_multiplier: f32) -> Vec<f32> {
         let mut bands = vec![0.0f32; self.num_bands];
 
         for (i, &(bin_low, bin_high)) in self.band_bin_ranges.iter().enumerate() {
@@ -54,11 +54,17 @@ impl FrequencyBands {
             let avg = sum / slice.len() as f32;
 
             // Blend max and average to balance punchiness and energy representation
-            let val = 0.6 * max_val + 0.4 * avg;
+            let raw_val = 0.6 * max_val + 0.4 * avg;
 
-            // Boost higher frequency bands slightly to compensate for natural 1/f audio falloff
-            let treble_boost = 1.0 + 1.5 * (i as f32 / self.num_bands as f32).powf(1.5);
-            bands[i] = (val * treble_boost).clamp(0.0, 1.0);
+            // Treble compensation curve for natural 1/f falloff
+            let treble_boost = 1.0 + 1.8 * (i as f32 / self.num_bands as f32).powf(1.4);
+
+            // Dynamic Range Compression: Power-law curve (gamma ~ 0.45)
+            // Lifts quiet sections while preventing loud spikes from clipping
+            let scaled_val = (raw_val * 4.0 * gain_multiplier * treble_boost).max(0.0);
+            let compressed = scaled_val.powf(0.55);
+
+            bands[i] = compressed.clamp(0.0, 1.0);
         }
 
         bands
