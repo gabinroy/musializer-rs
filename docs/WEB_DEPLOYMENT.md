@@ -1,8 +1,23 @@
 # Musializer-RS: WebAssembly (WASM) Deployment Guide
 
-Musializer-RS runs directly inside modern web browsers with hardware-accelerated WebGPU/WebGL rendering via WebAssembly and `eframe`.
+> [!WARNING]
+> **Status: Experimental / Work-In-Progress (WIP)**
+> WebAssembly (WASM) support in the browser is currently experimental. While the WebAssembly bundle compiles with `trunk`, web browsers enforce strict security and sandbox limitations (such as Web Audio autoplay restrictions, single-threaded browser runtime, and sandboxed file system access) that may cause playback or initialization inconsistencies.
+> 
+> **For the full, high-performance, and feature-complete experience (including low-latency audio playback and offline 60 FPS video export), we recommend running the Native Desktop app (`cargo run --release`) or Mobile app.**
 
 ---
+
+## ⚠️ Known Web (WASM) Limitations
+
+1. **Browser Audio Autoplay Policies**:
+   * Modern browsers require an explicit user gesture (click/tap) before allowing `AudioContext` to start.
+2. **Single-Threaded Execution**:
+   * Native desktop and mobile platforms use background worker threads for zero-latency audio streaming and DSP Fourier analysis. In the browser, threading requires Web Workers and SharedArrayBuffer with specialized HTTP cross-origin isolation headers.
+3. **No Direct Offline Video Export**:
+   * Direct FFmpeg piping for offline `.mp4` rendering is only supported on native desktop platforms.
+4. **File System Sandboxing**:
+   * Native file dialogs (`rfd`) and direct filesystem paths (`PathBuf`) are sandboxed in the browser environment.
 
 ## 🌐 1. Prerequisites
 

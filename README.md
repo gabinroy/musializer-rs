@@ -16,9 +16,9 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
 ## 🌟 Key Features
 
 - **Cross-Platform Support**:
-  - 🖥️ **Desktop**: Linux (Wayland/X11), Windows (WASAPI/DirectX), macOS (CoreAudio/Metal).
-  - 📱 **Mobile**: Android (`cargo-apk` NativeActivity), iOS (Xcode Universal static library).
-  - 🌐 **Web**: WebAssembly (WASM + WebGPU/WebGL) via `trunk`.
+  - 🖥️ **Desktop (Recommended / Stable)**: Linux (Wayland/X11), Windows (WASAPI/DirectX), macOS (CoreAudio/Metal) with 100% feature parity, hardware audio, and offline 60 FPS video export.
+  - 📱 **Mobile (Native)**: Android (`cargo-apk` NativeActivity), iOS (Xcode Universal static library).
+  - 🌐 **Web (Experimental / WIP)**: WebAssembly (WASM) via `trunk` *(subject to browser audio autoplay & threading restrictions)*.
 - **Multi-Format Audio Support**: Decode and play MP3, WAV, FLAC, OGG/Vorbis, and AAC files via pure-Rust `symphonia` (file-based or in-memory buffer decoding).
 - **Hardware-Accelerated UI**: Built with `eframe` (egui + wgpu) for 60+ FPS rendering across all targets.
 - **Touch-First Mobile UI**:
