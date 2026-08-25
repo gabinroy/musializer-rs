@@ -11,7 +11,6 @@ use egui::{
 
 use crate::audio::{AudioPlayer, AudioSync, AudioTrack};
 use crate::dsp::{EmaSmoother, FftProcessor, FrequencyBands};
-#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 use crate::export::{ExportConfig, VideoExporter};
 use crate::ui::{
     CircleCenterDisplay, ColorTheme, DragDropOverlay, TransportControls, VisualizerMode,
@@ -42,16 +41,11 @@ pub struct MusializerApp {
     cached_wave: Vec<f32>,
 
     // Video Export State (Desktop)
-    #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
     exporter: VideoExporter,
     show_export_modal: bool,
-    #[allow(dead_code)]
     export_output_path: String,
-    #[allow(dead_code)]
     export_fps: u32,
-    #[allow(dead_code)]
     export_width: u32,
-    #[allow(dead_code)]
     export_height: u32,
 
     error_msg: Option<String>,
@@ -93,7 +87,6 @@ impl MusializerApp {
             last_frame_time: Instant::now(),
             cached_wave: vec![0.0; fft_size],
 
-            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
             exporter: VideoExporter::new(),
             show_export_modal: false,
             export_output_path: "musializer_render.mp4".to_string(),
@@ -131,18 +124,14 @@ impl MusializerApp {
         }
     }
 
-    #[allow(unused_variables)]
     pub fn load_custom_cover_image(&mut self, ctx: &egui::Context, path: PathBuf) {
-        #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-        {
-            match std::fs::read(&path) {
-                Ok(bytes) => {
-                    self.load_custom_cover_image_from_bytes(ctx, &bytes);
-                }
-                Err(e) => {
-                    log::error!("Failed to read cover image file {:?}: {}", path, e);
-                    self.error_msg = Some(format!("Failed to read image file: {}", e));
-                }
+        match std::fs::read(&path) {
+            Ok(bytes) => {
+                self.load_custom_cover_image_from_bytes(ctx, &bytes);
+            }
+            Err(e) => {
+                log::error!("Failed to read cover image file {:?}: {}", path, e);
+                self.error_msg = Some(format!("Failed to read image file: {}", e));
             }
         }
     }
@@ -248,27 +237,8 @@ impl eframe::App for MusializerApp {
         let mut on_load_center_image = false;
         let mut on_open_file_click = false;
 
-        let is_exporting = {
-            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-            {
-                self.exporter.is_exporting()
-            }
-            #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
-            {
-                false
-            }
-        };
-
-        let export_prog = {
-            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-            {
-                self.exporter.get_progress()
-            }
-            #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
-            {
-                0.0
-            }
-        };
+        let is_exporting = self.exporter.is_exporting();
+        let export_prog = self.exporter.get_progress();
 
         // Bottom Controls Panel
         TopBottomPanel::bottom("bottom_controls_panel")
@@ -303,7 +273,7 @@ impl eframe::App for MusializerApp {
                 Err(_) => true,
             };
 
-            // Drag and drop handler (Desktop/Web)
+            // Drag and drop handler (Desktop)
             if let Some(dropped_path) =
                 DragDropOverlay::check_and_render(ui, is_empty, &mut on_open_file_click)
             {
@@ -377,36 +347,30 @@ impl eframe::App for MusializerApp {
 
         // Trigger audio file picker
         if on_open_file_click {
-            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+            if let Some(audio_path) = rfd::FileDialog::new()
+                .add_filter(
+                    "Audio Files",
+                    &["mp3", "wav", "flac", "ogg", "aac", "m4a", "aiff"],
+                )
+                .pick_file()
             {
-                if let Some(audio_path) = rfd::FileDialog::new()
-                    .add_filter(
-                        "Audio Files",
-                        &["mp3", "wav", "flac", "ogg", "aac", "m4a", "aiff"],
-                    )
-                    .pick_file()
-                {
-                    self.load_audio_file(audio_path);
-                }
+                self.load_audio_file(audio_path);
             }
         }
 
         // Trigger custom center cover image picker
         if on_load_center_image {
-            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
+            if let Some(img_path) = rfd::FileDialog::new()
+                .add_filter(
+                    "Image Files (PNG, JPG, WebP, BMP, GIF, ICO, TIFF)",
+                    &[
+                        "png", "jpg", "jpeg", "webp", "bmp", "gif", "ico", "tiff", "tif",
+                    ],
+                )
+                .add_filter("All Files", &["*"])
+                .pick_file()
             {
-                if let Some(img_path) = rfd::FileDialog::new()
-                    .add_filter(
-                        "Image Files (PNG, JPG, WebP, BMP, GIF, ICO, TIFF)",
-                        &[
-                            "png", "jpg", "jpeg", "webp", "bmp", "gif", "ico", "tiff", "tif",
-                        ],
-                    )
-                    .add_filter("All Files", &["*"])
-                    .pick_file()
-                {
-                    self.load_custom_cover_image(ctx, img_path);
-                }
+                self.load_custom_cover_image(ctx, img_path);
             }
         }
 
@@ -420,167 +384,143 @@ impl eframe::App for MusializerApp {
             let mut is_open = true;
             let mut close_modal = false;
 
-            #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-            {
-                Window::new("🎬 Export Video")
-                    .open(&mut is_open)
-                    .resizable(false)
-                    .collapsible(false)
-                    .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                    .show(ctx, |ui| {
-                        ui.set_min_width(380.0);
+            Window::new("🎬 Export Video")
+                .open(&mut is_open)
+                .resizable(false)
+                .collapsible(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(ctx, |ui| {
+                    ui.set_min_width(380.0);
 
-                        let is_exporting = self.exporter.is_exporting();
+                    let is_exporting = self.exporter.is_exporting();
 
-                        if is_exporting {
-                            let prog = self.exporter.get_progress();
-                            let status = self.exporter.get_status();
+                    if is_exporting {
+                        let prog = self.exporter.get_progress();
+                        let status = self.exporter.get_status();
 
-                            ui.add_space(8.0);
-                            ui.label(RichText::new(&status).strong());
-                            ui.add_space(6.0);
-                            ui.add(ProgressBar::new(prog).show_percentage());
-                            ui.add_space(12.0);
+                        ui.add_space(8.0);
+                        ui.label(RichText::new(&status).strong());
+                        ui.add_space(6.0);
+                        ui.add(ProgressBar::new(prog).show_percentage());
+                        ui.add_space(12.0);
 
+                        if ui
+                            .button(
+                                RichText::new("Cancel Export")
+                                    .color(Color32::from_rgb(255, 100, 100)),
+                            )
+                            .clicked()
+                        {
+                            self.exporter.cancel();
+                        }
+                    } else {
+                        ui.add_space(4.0);
+                        ui.label("Render full track to high-definition MP4 video:");
+                        ui.add_space(8.0);
+
+                        ui.horizontal(|ui| {
+                            ui.label("Resolution:");
+                            egui::ComboBox::from_id_source("export_res_combo")
+                                .selected_text(format!(
+                                    "{}x{}",
+                                    self.export_width, self.export_height
+                                ))
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut self.export_width,
+                                        1920,
+                                        "1920x1080 (1080p FHD)",
+                                    );
+                                    if self.export_width == 1920 {
+                                        self.export_height = 1080;
+                                    }
+                                    ui.selectable_value(
+                                        &mut self.export_width,
+                                        1280,
+                                        "1280x720 (720p HD)",
+                                    );
+                                    if self.export_width == 1280 {
+                                        self.export_height = 720;
+                                    }
+                                });
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Framerate:");
+                            egui::ComboBox::from_id_source("export_fps_combo")
+                                .selected_text(format!("{} FPS", self.export_fps))
+                                .show_ui(ui, |ui| {
+                                    ui.selectable_value(
+                                        &mut self.export_fps,
+                                        60,
+                                        "60 FPS (Ultra Smooth)",
+                                    );
+                                    ui.selectable_value(
+                                        &mut self.export_fps,
+                                        30,
+                                        "30 FPS (Standard)",
+                                    );
+                                });
+                        });
+
+                        ui.horizontal(|ui| {
+                            ui.label("Output:");
+                            ui.text_edit_singleline(&mut self.export_output_path);
+                            if ui.button("📂 Browse...").clicked() {
+                                if let Some(save_path) = rfd::FileDialog::new()
+                                    .set_file_name("musializer_render.mp4")
+                                    .add_filter("MP4 Video", &["mp4"])
+                                    .save_file()
+                                {
+                                    self.export_output_path =
+                                        save_path.to_string_lossy().to_string();
+                                }
+                            }
+                        });
+
+                        ui.add_space(12.0);
+
+                        ui.horizontal(|ui| {
                             if ui
                                 .button(
-                                    RichText::new("Cancel Export")
-                                        .color(Color32::from_rgb(255, 100, 100)),
+                                    RichText::new("🚀 Start Export")
+                                        .color(Color32::from_rgb(0, 240, 255))
+                                        .strong(),
                                 )
                                 .clicked()
                             {
-                                self.exporter.cancel();
+                                if let Ok(player) = &self.player {
+                                    if let Some(track) = player.track() {
+                                        let config = ExportConfig {
+                                            width: self.export_width,
+                                            height: self.export_height,
+                                            fps: self.export_fps,
+                                            output_path: PathBuf::from(
+                                                &self.export_output_path,
+                                            ),
+                                            mode: self.mode,
+                                            theme: self.theme,
+                                            num_bands: self.num_bands,
+                                            center_display: self.circle_center_display,
+                                            center_image: self.raw_cover_image.clone(),
+                                        };
+
+                                        let _ = self
+                                            .exporter
+                                            .start_export((**track).clone(), config);
+                                    }
+                                }
                             }
-                        } else {
-                            ui.add_space(4.0);
-                            ui.label("Render full track to high-definition MP4 video:");
-                            ui.add_space(8.0);
 
-                            ui.horizontal(|ui| {
-                                ui.label("Resolution:");
-                                egui::ComboBox::from_id_source("export_res_combo")
-                                    .selected_text(format!(
-                                        "{}x{}",
-                                        self.export_width, self.export_height
-                                    ))
-                                    .show_ui(ui, |ui| {
-                                        ui.selectable_value(
-                                            &mut self.export_width,
-                                            1920,
-                                            "1920x1080 (1080p FHD)",
-                                        );
-                                        if self.export_width == 1920 {
-                                            self.export_height = 1080;
-                                        }
-                                        ui.selectable_value(
-                                            &mut self.export_width,
-                                            1280,
-                                            "1280x720 (720p HD)",
-                                        );
-                                        if self.export_width == 1280 {
-                                            self.export_height = 720;
-                                        }
-                                    });
-                            });
-
-                            ui.horizontal(|ui| {
-                                ui.label("Framerate:");
-                                egui::ComboBox::from_id_source("export_fps_combo")
-                                    .selected_text(format!("{} FPS", self.export_fps))
-                                    .show_ui(ui, |ui| {
-                                        ui.selectable_value(
-                                            &mut self.export_fps,
-                                            60,
-                                            "60 FPS (Ultra Smooth)",
-                                        );
-                                        ui.selectable_value(
-                                            &mut self.export_fps,
-                                            30,
-                                            "30 FPS (Standard)",
-                                        );
-                                    });
-                            });
-
-                            ui.horizontal(|ui| {
-                                ui.label("Output:");
-                                ui.text_edit_singleline(&mut self.export_output_path);
-                                if ui.button("📂 Browse...").clicked() {
-                                    if let Some(save_path) = rfd::FileDialog::new()
-                                        .set_file_name("musializer_render.mp4")
-                                        .add_filter("MP4 Video", &["mp4"])
-                                        .save_file()
-                                    {
-                                        self.export_output_path =
-                                            save_path.to_string_lossy().to_string();
-                                    }
-                                }
-                            });
-
-                            ui.add_space(12.0);
-
-                            ui.horizontal(|ui| {
-                                if ui
-                                    .button(
-                                        RichText::new("🚀 Start Export")
-                                            .color(Color32::from_rgb(0, 240, 255))
-                                            .strong(),
-                                    )
-                                    .clicked()
-                                {
-                                    if let Ok(player) = &self.player {
-                                        if let Some(track) = player.track() {
-                                            let config = ExportConfig {
-                                                width: self.export_width,
-                                                height: self.export_height,
-                                                fps: self.export_fps,
-                                                output_path: PathBuf::from(
-                                                    &self.export_output_path,
-                                                ),
-                                                mode: self.mode,
-                                                theme: self.theme,
-                                                num_bands: self.num_bands,
-                                                center_display: self.circle_center_display,
-                                                center_image: self.raw_cover_image.clone(),
-                                            };
-
-                                            let _ = self
-                                                .exporter
-                                                .start_export((**track).clone(), config);
-                                        }
-                                    }
-                                }
-
-                                if ui.button("Close").clicked() {
-                                    close_modal = true;
-                                }
-                            });
-                        }
-                    });
-            }
-
-            #[cfg(any(target_os = "android", target_os = "ios", target_arch = "wasm32"))]
-            {
-                Window::new("📱 Record Video Info")
-                    .open(&mut is_open)
-                    .resizable(false)
-                    .collapsible(false)
-                    .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
-                    .show(ctx, |ui| {
-                        ui.set_min_width(320.0);
-                        ui.label(RichText::new("Native Screen Recording").strong());
-                        ui.add_space(6.0);
-                        ui.label(
-                            "To capture high-definition visualizer video on Mobile and Web, \
-                            use your operating system's built-in 60 FPS screen recorder (e.g. iOS Control Center / Android Screen Recorder / Browser capture).",
-                        );
-                        ui.add_space(12.0);
-                        if ui.button("Got it").clicked() {
-                            close_modal = true;
-                        }
-                    });
-            }
+                            if ui.button("Close").clicked() {
+                                close_modal = true;
+                            }
+                        });
+                    }
+                });
 
             self.show_export_modal = is_open && !close_modal;
         }
     }
 }
+

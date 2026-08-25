@@ -46,7 +46,7 @@ impl AudioTrack {
         Ok(track)
     }
 
-    /// Decodes audio data from an in-memory byte buffer (for Web/WASM and mobile Document Pickers)
+    /// Decodes audio data from an in-memory byte buffer
     #[allow(dead_code)]
     pub fn load_from_memory(bytes: Vec<u8>, filename_hint: Option<&str>) -> Result<Self, String> {
         let title = filename_hint

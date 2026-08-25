@@ -1,7 +1,5 @@
-#[cfg(not(target_arch = "wasm32"))]
 use musializer_rs::MusializerApp;
 
-#[cfg(not(target_arch = "wasm32"))]
 fn main() -> eframe::Result<()> {
     env_logger::init();
 
@@ -31,7 +29,6 @@ fn main() -> eframe::Result<()> {
     )
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn load_embedded_icon() -> Option<egui::IconData> {
     let icon_bytes = include_bytes!("../assets/icon.png");
     if let Ok(image) = image::load_from_memory(icon_bytes) {
@@ -47,11 +44,3 @@ fn load_embedded_icon() -> Option<egui::IconData> {
         None
     }
 }
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-fn load_embedded_icon() -> Option<egui::IconData> {
-    None
-}
-
-#[cfg(target_arch = "wasm32")]
-fn main() {}
