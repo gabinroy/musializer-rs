@@ -84,6 +84,33 @@ cargo wix --release
 
 ---
 
+## 🤖 2. Automated Multi-Platform Releases (GitHub Actions)
+
+The repository includes a unified CI/CD workflow located at [`.github/workflows/release.yml`](../.github/workflows/release.yml) that builds and publishes releases for all platforms without local OS dependencies.
+
+### Triggering a Release via Git Tag:
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+### Triggering a Release Manually (with Custom Release Notes):
+1. Navigate to **Actions** $\rightarrow$ **Release Build & Publish** in your GitHub repository.
+2. Click **Run workflow**.
+3. Fill in the release parameters:
+   - **Release Tag** (e.g., `v0.1.0`)
+   - **Release Title** (e.g., `Musializer v0.1.0 — Initial Release`)
+   - **Custom Release Notes** (Markdown notes describing what changed)
+4. Click **Run workflow**.
+
+Generated artifacts uploaded automatically to the GitHub Release:
+- **Linux**: `.AppImage`, `.deb`, `.tar.gz`
+- **Windows**: `.msi` installer, `.zip` (containing `musializer-rs.exe`)
+- **macOS (Intel & Apple Silicon)**: `.app.zip`, `.tar.gz`
+
+
+---
+
 ## 🎬 2. In-App Video Exporting (MP4 Video Rendering)
 
 To render high-definition 60 FPS visualizer `.mp4` videos with muxed audio:

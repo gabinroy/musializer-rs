@@ -1,0 +1,159 @@
+name: Release Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v0.1.0)'
+        required: true
+        default: 'v0.1.0'
+      release_title:
+        description: 'Release Title'
+        required: false
+        default: ''
+      release_notes:
+        description: 'Custom Release Notes (Leave empty to auto-generate or use draft)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform.name }})
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Linux x86_64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact_type: linux
+          - name: Windows x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_type: windows
+          - name: macOS Universal / x86_64
+            os: macos-13
+            target: x86_64-apple-darwin
+            artifact_type: macos
+          - name: macOS Apple Silicon (M1/M2/M3)
+            os: macos-14
+            target: aarch64-apple-darwin
+            artifact_type: macos
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      # Linux dependencies
+      - name: Install Linux dependencies
+        if: matrix.platform.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev pkg-config libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libwayland-dev libxkbcommon-dev squashfs-tools
+
+      # Build binaries and packages
+      - name: Install cargo-bundle
+        run: cargo install cargo-bundle
+
+      - name: Build and Bundle Release Packages
+        shell: bash
+        run: |
+          cargo bundle --release --target ${{ matrix.platform.target }}
+
+      # Prepare artifacts for upload
+      - name: Package Linux Artifacts
+        if: matrix.platform.artifact_type == 'linux'
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Copy AppImage and deb from target bundle directory
+          find target/${{ matrix.platform.target }}/release/bundle/ -name "*.AppImage" -exec cp {} dist/ \; || true
+          find target/${{ matrix.platform.target }}/release/bundle/ -name "*.deb" -exec cp {} dist/ \; || true
+          # Also package raw binary as tar.gz
+          tar -czf dist/musializer-rs-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
+
+      - name: Package Windows Artifacts
+        if: matrix.platform.artifact_type == 'windows'
+        shell: bash
+        run: |
+          mkdir -p dist
+          find target/${{ matrix.platform.target }}/release/bundle/ -name "*.msi" -exec cp {} dist/ \; || true
+          # Zip the standalone exe
+          cd target/${{ matrix.platform.target }}/release
+          7z a ../../../../dist/musializer-rs-${{ matrix.platform.target }}.zip musializer-rs.exe
+
+      - name: Package macOS Artifacts
+        if: matrix.platform.artifact_type == 'macos'
+        shell: bash
+        run: |
+          mkdir -p dist
+          # Compress .app into zip
+          cd target/${{ matrix.platform.target }}/release/bundle/osx
+          zip -r ../../../../../dist/musializer-rs-${{ matrix.platform.target }}.app.zip *.app
+          cd -
+          # Also package standalone binary
+          tar -czf dist/musializer-rs-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.platform.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-dist
+          merge-multiple: true
+
+      - name: Determine Tag & Release Details
+        id: release_info
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+            TITLE="${{ github.event.inputs.release_title }}"
+            if [ -z "$TITLE" ]; then
+              TITLE="${{ github.event.inputs.tag_name }}"
+            fi
+            echo "title=$TITLE" >> $GITHUB_OUTPUT
+            echo "notes=${{ github.event.inputs.release_notes }}" >> $GITHUB_OUTPUT
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "title=$TAG" >> $GITHUB_OUTPUT
+            echo "notes=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: ${{ steps.release_info.outputs.title }}
+          body: ${{ steps.release_info.outputs.notes }}
+          generate_release_notes: true
+          files: all-dist/*

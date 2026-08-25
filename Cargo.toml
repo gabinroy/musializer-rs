@@ -37,3 +37,13 @@ image = { version = "0.25", default-features = false, features = [
 ] }
 web-time = "1.1"
 
+[package.metadata.bundle]
+name = "Musializer-RS"
+identifier = "com.musializer.musializer-rs"
+icon = ["assets/icon.png"]
+version = "0.1.0"
+category = "AudioVideo;Audio"
+short_description = "High-Performance Audio Visualizer"
+long_description = """
+Musializer-RS is a real-time, high-performance cross-platform audio visualization tool built with Rust and egui.
+"""
