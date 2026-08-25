@@ -34,6 +34,7 @@ pub struct MusializerApp {
     // Circular visualizer center options
     circle_center_display: CircleCenterDisplay,
     circle_center_texture: Option<TextureHandle>,
+    image_loading_timer: Option<Instant>,
 
     last_frame_time: Instant,
     cached_wave: Vec<f32>,
@@ -84,6 +85,7 @@ impl MusializerApp {
             visual_gain: 1.2,
             circle_center_display: CircleCenterDisplay::TimeElapsed,
             circle_center_texture,
+            image_loading_timer: None,
 
             last_frame_time: Instant::now(),
             cached_wave: vec![0.0; fft_size],
@@ -130,13 +132,37 @@ impl MusializerApp {
     pub fn load_custom_cover_image(&mut self, ctx: &egui::Context, path: PathBuf) {
         #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
         {
-            if let Ok(bytes) = std::fs::read(&path) {
-                if let Ok(img) = image::load_from_memory(&bytes) {
-                    let color_img = make_circular_color_image(img);
-                    self.circle_center_texture =
-                        Some(ctx.load_texture("custom_cover", color_img, TextureOptions::LINEAR));
-                    self.circle_center_display = CircleCenterDisplay::CustomCoverArt;
+            match std::fs::read(&path) {
+                Ok(bytes) => {
+                    self.load_custom_cover_image_from_bytes(ctx, &bytes);
                 }
+                Err(e) => {
+                    log::error!("Failed to read cover image file {:?}: {}", path, e);
+                    self.error_msg = Some(format!("Failed to read image file: {}", e));
+                }
+            }
+        }
+    }
+
+    pub fn load_custom_cover_image_from_bytes(&mut self, ctx: &egui::Context, bytes: &[u8]) {
+        match image::load_from_memory(bytes) {
+            Ok(img) => {
+                let color_img = make_circular_color_image(img);
+                if let Some(tex) = &mut self.circle_center_texture {
+                    tex.set(color_img, TextureOptions::LINEAR);
+                } else {
+                    self.circle_center_texture = Some(ctx.load_texture(
+                        "custom_cover",
+                        color_img,
+                        TextureOptions::LINEAR,
+                    ));
+                }
+                self.circle_center_display = CircleCenterDisplay::CustomCoverArt;
+                self.image_loading_timer = Some(Instant::now());
+            }
+            Err(e) => {
+                log::error!("Failed to decode cover image memory buffer: {}", e);
+                self.error_msg = Some(format!("Failed to decode image: {}", e));
             }
         }
     }
@@ -157,7 +183,6 @@ impl MusializerApp {
     }
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
 fn make_circular_color_image(dynamic_img: image::DynamicImage) -> ColorImage {
     let (w, h) = (dynamic_img.width(), dynamic_img.height());
     let size = w.min(h);
@@ -190,19 +215,15 @@ fn make_circular_color_image(dynamic_img: image::DynamicImage) -> ColorImage {
     ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw_pixels)
 }
 
-#[allow(unused_variables)]
 fn load_default_logo_texture(ctx: &egui::Context) -> Option<TextureHandle> {
-    #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
-    {
-        let icon_bytes = include_bytes!("../assets/icon.png");
-        if let Ok(img) = image::load_from_memory(icon_bytes) {
-            let color_img = make_circular_color_image(img);
-            return Some(ctx.load_texture(
-                "default_logo_texture",
-                color_img,
-                TextureOptions::LINEAR,
-            ));
-        }
+    let icon_bytes = include_bytes!("../assets/icon.png");
+    if let Ok(img) = image::load_from_memory(icon_bytes) {
+        let color_img = make_circular_color_image(img);
+        return Some(ctx.load_texture(
+            "default_logo_texture",
+            color_img,
+            TextureOptions::LINEAR,
+        ));
     }
     None
 }
@@ -308,6 +329,18 @@ impl eframe::App for MusializerApp {
                 }
             }
 
+            let image_anim_prog = if let Some(start) = self.image_loading_timer {
+                let elapsed = start.elapsed().as_secs_f32();
+                if elapsed < 0.6 {
+                    Some((elapsed / 0.6).clamp(0.0, 1.0))
+                } else {
+                    self.image_loading_timer = None;
+                    None
+                }
+            } else {
+                None
+            };
+
             let available_rect = ui.available_rect_before_wrap();
             if available_rect.width() > 10.0 && available_rect.height() > 10.0 && !is_empty {
                 VisualizerWidget::show(
@@ -323,6 +356,7 @@ impl eframe::App for MusializerApp {
                     current_time,
                     total_time,
                     track_title.as_deref(),
+                    image_anim_prog,
                 );
             }
 
@@ -353,7 +387,13 @@ impl eframe::App for MusializerApp {
             #[cfg(not(any(target_os = "android", target_os = "ios", target_arch = "wasm32")))]
             {
                 if let Some(img_path) = rfd::FileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "webp", "bmp"])
+                    .add_filter(
+                        "Image Files (PNG, JPG, WebP, BMP, GIF, ICO, TIFF)",
+                        &[
+                            "png", "jpg", "jpeg", "webp", "bmp", "gif", "ico", "tiff", "tif",
+                        ],
+                    )
+                    .add_filter("All Files", &["*"])
                     .pick_file()
                 {
                     self.load_custom_cover_image(ctx, img_path);
@@ -455,6 +495,16 @@ impl eframe::App for MusializerApp {
                             ui.horizontal(|ui| {
                                 ui.label("Output:");
                                 ui.text_edit_singleline(&mut self.export_output_path);
+                                if ui.button("📂 Browse...").clicked() {
+                                    if let Some(save_path) = rfd::FileDialog::new()
+                                        .set_file_name("musializer_render.mp4")
+                                        .add_filter("MP4 Video", &["mp4"])
+                                        .save_file()
+                                    {
+                                        self.export_output_path =
+                                            save_path.to_string_lossy().to_string();
+                                    }
+                                }
                             });
 
                             ui.add_space(12.0);

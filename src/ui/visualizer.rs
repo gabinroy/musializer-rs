@@ -57,6 +57,7 @@ impl VisualizerWidget {
         current_time: f64,
         total_time: f64,
         track_title: Option<&str>,
+        image_loading_anim: Option<f32>,
     ) {
         // Draw background canvas
         painter.rect_filled(rect, Rounding::ZERO, Color32::from_rgb(11, 13, 19));
@@ -79,6 +80,7 @@ impl VisualizerWidget {
                     current_time,
                     total_time,
                     track_title,
+                    image_loading_anim,
                 );
             }
         }
@@ -186,6 +188,7 @@ impl VisualizerWidget {
         current_time: f64,
         total_time: f64,
         track_title: Option<&str>,
+        image_loading_anim: Option<f32>,
     ) {
         if bands.is_empty() {
             return;
@@ -241,12 +244,53 @@ impl VisualizerWidget {
                 let uv = Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0));
                 let img_rect =
                     Rect::from_center_size(center, egui::vec2(img_radius * 2.0, img_radius * 2.0));
-                painter.image(tex.id(), img_rect, uv, Color32::WHITE);
+
+                let img_alpha = if let Some(prog) = image_loading_anim {
+                    ((prog * 2.0).min(1.0) * 255.0) as u8
+                } else {
+                    255
+                };
+                let tint = Color32::from_rgba_unmultiplied(
+                    img_alpha,
+                    img_alpha,
+                    img_alpha,
+                    img_alpha,
+                );
+                painter.image(tex.id(), img_rect, uv, tint);
             }
         }
 
         // Outer glow border
         painter.circle_stroke(center, core_radius, Stroke::new(2.5_f32, core_color));
+
+        // Loading animation spinner / glowing ring during image update
+        if let Some(prog) = image_loading_anim {
+            let spin_angle = prog * 10.0 * PI;
+            let spinner_radius = core_radius * 0.65;
+            let num_segments = 20;
+            let arc_len = PI * 1.3;
+            let mut arc_pts = Vec::new();
+            for j in 0..=num_segments {
+                let a = spin_angle + (j as f32 / num_segments as f32) * arc_len;
+                arc_pts.push(Pos2::new(
+                    center.x + a.cos() * spinner_radius,
+                    center.y + a.sin() * spinner_radius,
+                ));
+            }
+            let spinner_color = theme.get_gradient_color(0.5);
+            let alpha = ((1.0 - prog) * 255.0) as u8;
+            let spinner_col = Color32::from_rgba_unmultiplied(
+                spinner_color.r(),
+                spinner_color.g(),
+                spinner_color.b(),
+                alpha,
+            );
+            painter.add(egui::Shape::line(arc_pts, Stroke::new(3.5_f32, spinner_col)));
+
+            // Outer pulse ring
+            let pulse_r = core_radius * (1.0 + (1.0 - prog) * 0.15);
+            painter.circle_stroke(center, pulse_r, Stroke::new(2.0_f32, spinner_col));
+        }
 
         // Render Center Text / Time if selected
         let format_time = |secs: f64| {
