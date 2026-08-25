@@ -38,12 +38,8 @@ jobs:
             os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_type: windows
-          - name: macOS Universal / x86_64
-            os: macos-13
-            target: x86_64-apple-darwin
-            artifact_type: macos
-          - name: macOS Apple Silicon (M1/M2/M3)
-            os: macos-14
+          - name: macOS Apple Silicon (M-Series)
+            os: macos-latest
             target: aarch64-apple-darwin
             artifact_type: macos
 
@@ -61,7 +57,7 @@ jobs:
 
       # Linux dependencies
       - name: Install Linux dependencies
-        if: matrix.platform.os == 'ubuntu-22.04'
+        if: matrix.platform.artifact_type == 'linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libasound2-dev libudev-dev pkg-config libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libwayland-dev libxkbcommon-dev squashfs-tools
@@ -70,10 +66,20 @@ jobs:
       - name: Install cargo-bundle
         run: cargo install cargo-bundle
 
-      - name: Build and Bundle Release Packages
+      # Linux & macOS bundling
+      - name: Build and Bundle (Linux & macOS)
+        if: matrix.platform.artifact_type != 'windows'
         shell: bash
         run: |
           cargo bundle --release --target ${{ matrix.platform.target }}
+
+      # Windows: build release binary (and optional bundle without failing)
+      - name: Build Release (Windows)
+        if: matrix.platform.artifact_type == 'windows'
+        shell: bash
+        run: |
+          cargo build --release --target ${{ matrix.platform.target }}
+          cargo bundle --release --target ${{ matrix.platform.target }} || true
 
       # Prepare artifacts for upload
       - name: Package Linux Artifacts
@@ -81,10 +87,8 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          # Copy AppImage and deb from target bundle directory
           find target/${{ matrix.platform.target }}/release/bundle/ -name "*.AppImage" -exec cp {} dist/ \; || true
           find target/${{ matrix.platform.target }}/release/bundle/ -name "*.deb" -exec cp {} dist/ \; || true
-          # Also package raw binary as tar.gz
           tar -czf dist/musializer-rs-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
       - name: Package Windows Artifacts
@@ -93,7 +97,6 @@ jobs:
         run: |
           mkdir -p dist
           find target/${{ matrix.platform.target }}/release/bundle/ -name "*.msi" -exec cp {} dist/ \; || true
-          # Zip the standalone exe
           cd target/${{ matrix.platform.target }}/release
           7z a ../../../../dist/musializer-rs-${{ matrix.platform.target }}.zip musializer-rs.exe
 
@@ -102,11 +105,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          # Compress .app into zip
-          cd target/${{ matrix.platform.target }}/release/bundle/osx
-          zip -r ../../../../../dist/musializer-rs-${{ matrix.platform.target }}.app.zip *.app
-          cd -
-          # Also package standalone binary
+          if [ -d "target/${{ matrix.platform.target }}/release/bundle/osx" ]; then
+            cd target/${{ matrix.platform.target }}/release/bundle/osx
+            zip -r ../../../../../dist/musializer-rs-${{ matrix.platform.target }}.app.zip *.app || true
+            cd -
+          fi
           tar -czf dist/musializer-rs-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
       - name: Upload Artifacts
