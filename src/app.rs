@@ -13,8 +13,8 @@ use crate::audio::{AudioPlayer, AudioSync, AudioTrack};
 use crate::dsp::{EmaSmoother, FftProcessor, FrequencyBands};
 use crate::export::{ExportConfig, VideoExporter};
 use crate::ui::{
-    CircleCenterDisplay, ColorTheme, DragDropOverlay, TransportControls, VisualizerMode,
-    VisualizerWidget, apply_theme,
+    CircleCenterDisplay, ColorTheme, DragDropOverlay, DroppedItem, TransportControls,
+    VisualizerMode, VisualizerWidget, apply_theme,
 };
 
 pub struct MusializerApp {
@@ -233,6 +233,15 @@ impl eframe::App for MusializerApp {
         let dt = (now - self.last_frame_time).as_secs_f32().min(0.1);
         self.last_frame_time = now;
 
+        ctx.input(|i| {
+            if !i.raw.dropped_files.is_empty() {
+                log::info!("Dropped files event received: {:?}", i.raw.dropped_files);
+            }
+            if !i.raw.hovered_files.is_empty() {
+                log::debug!("Hovered files event received: {:?}", i.raw.hovered_files);
+            }
+        });
+
         let mut on_export_click = false;
         let mut on_load_center_image = false;
         let mut on_open_file_click = false;
@@ -273,11 +282,24 @@ impl eframe::App for MusializerApp {
                 Err(_) => true,
             };
 
-            // Drag and drop handler (Desktop)
-            if let Some(dropped_path) =
+            // Drag and drop handler (Desktop & Web)
+            if let Some(dropped_item) =
                 DragDropOverlay::check_and_render(ui, is_empty, &mut on_open_file_click)
             {
-                self.load_audio_file(dropped_path);
+                match dropped_item {
+                    DroppedItem::AudioPath(path) => {
+                        self.load_audio_file(path);
+                    }
+                    DroppedItem::AudioBytes { name, bytes } => {
+                        self.load_audio_from_bytes(bytes, name.as_deref());
+                    }
+                    DroppedItem::ImagePath(path) => {
+                        self.load_custom_cover_image(ctx, path);
+                    }
+                    DroppedItem::ImageBytes(bytes) => {
+                        self.load_custom_cover_image_from_bytes(ctx, &bytes);
+                    }
+                }
             }
 
             let mut current_time = 0.0;
@@ -495,9 +517,7 @@ impl eframe::App for MusializerApp {
                                             width: self.export_width,
                                             height: self.export_height,
                                             fps: self.export_fps,
-                                            output_path: PathBuf::from(
-                                                &self.export_output_path,
-                                            ),
+                                            output_path: PathBuf::from(&self.export_output_path),
                                             mode: self.mode,
                                             theme: self.theme,
                                             num_bands: self.num_bands,
@@ -505,9 +525,8 @@ impl eframe::App for MusializerApp {
                                             center_image: self.raw_cover_image.clone(),
                                         };
 
-                                        let _ = self
-                                            .exporter
-                                            .start_export((**track).clone(), config);
+                                        let _ =
+                                            self.exporter.start_export((**track).clone(), config);
                                     }
                                 }
                             }
@@ -523,4 +542,3 @@ impl eframe::App for MusializerApp {
         }
     }
 }
-

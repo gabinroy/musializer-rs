@@ -1,5 +1,16 @@
 use egui::{Align, Align2, Button, Color32, FontId, Layout, RichText, Rounding, Stroke, Ui};
 
+#[derive(Debug)]
+pub enum DroppedItem {
+    AudioPath(std::path::PathBuf),
+    AudioBytes {
+        name: Option<String>,
+        bytes: Vec<u8>,
+    },
+    ImagePath(std::path::PathBuf),
+    ImageBytes(Vec<u8>),
+}
+
 pub struct DragDropOverlay;
 
 impl DragDropOverlay {
@@ -8,19 +19,47 @@ impl DragDropOverlay {
         ui: &mut Ui,
         is_empty: bool,
         on_open_file_click: &mut bool,
-    ) -> Option<std::path::PathBuf> {
-        let mut dropped_path = None;
+    ) -> Option<DroppedItem> {
+        let mut dropped_item = None;
 
-        // Desktop OS drag-and-drop
+        // Desktop & Web drag-and-drop
         let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
         for file in dropped_files {
             if let Some(path) = file.path {
-                dropped_path = Some(path);
+                let ext = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                if matches!(
+                    ext.as_str(),
+                    "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "ico" | "tiff" | "tif"
+                ) {
+                    dropped_item = Some(DroppedItem::ImagePath(path));
+                } else {
+                    dropped_item = Some(DroppedItem::AudioPath(path));
+                }
+                break;
+            } else if let Some(bytes) = file.bytes {
+                let name = file.name.clone();
+                let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+                if matches!(
+                    ext.as_str(),
+                    "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "ico" | "tiff" | "tif"
+                ) {
+                    dropped_item = Some(DroppedItem::ImageBytes(bytes.to_vec()));
+                } else {
+                    dropped_item = Some(DroppedItem::AudioBytes {
+                        name: Some(name),
+                        bytes: bytes.to_vec(),
+                    });
+                }
                 break;
             }
         }
 
         let is_mobile = cfg!(any(target_os = "android", target_os = "ios"));
+        let is_linux = cfg!(target_os = "linux");
 
         // Draw empty state prompt if no track is loaded
         if is_empty {
@@ -66,8 +105,8 @@ impl DragDropOverlay {
             child_ui.label(RichText::new("🎵").size(if is_mobile { 36.0 } else { 44.0 }));
             child_ui.add_space(8.0);
 
-            let main_title = if is_mobile {
-                "Select an Audio File to Visualize"
+            let main_title = if is_mobile || is_linux {
+                "Click to Open Audio File"
             } else {
                 "Drag & Drop Audio File Here"
             };
@@ -139,6 +178,6 @@ impl DragDropOverlay {
             );
         }
 
-        dropped_path
+        dropped_item
     }
 }
