@@ -19,13 +19,13 @@ impl TransportControls {
         is_exporting: bool,
         export_progress: f32,
     ) {
-        let is_mobile_or_portrait = ui.available_width() < 600.0;
+        let is_compact_width = ui.available_width() < 600.0;
 
         Frame::none()
             .fill(Color32::from_rgb(18, 22, 32))
             .stroke(Stroke::new(1.0_f32, Color32::from_rgb(35, 42, 60)))
             .rounding(Rounding::same(8.0))
-            .inner_margin(Margin::same(if is_mobile_or_portrait {
+            .inner_margin(Margin::same(if is_compact_width {
                 12.0
             } else {
                 10.0
@@ -46,7 +46,7 @@ impl TransportControls {
                                 Button::new(
                                     RichText::new(export_btn_text)
                                         .color(Color32::from_rgb(0, 240, 255))
-                                        .size(if is_mobile_or_portrait { 13.0 } else { 12.0 }),
+                                        .size(if is_compact_width { 13.0 } else { 12.0 }),
                                 ),
                             )
                             .clicked()
@@ -54,11 +54,11 @@ impl TransportControls {
                             *on_export_click = true;
                         }
 
-                        // Open / Upload Audio button with prominent styling
+                        // Open Audio button with prominent styling
                         let open_btn = Button::new(
                             RichText::new("📂 Open Audio...")
                                 .color(Color32::from_rgb(0, 240, 255))
-                                .size(if is_mobile_or_portrait { 13.0 } else { 12.0 })
+                                .size(if is_compact_width { 13.0 } else { 12.0 })
                                 .strong(),
                         )
                         .fill(Color32::from_rgb(22, 28, 44))
@@ -79,7 +79,7 @@ impl TransportControls {
                                         .color(Color32::from_rgb(0, 240, 255)),
                                 );
 
-                                if !is_mobile_or_portrait {
+                                if !is_compact_width {
                                     ui.label(
                                         RichText::new(format!("({} Hz Stereo)", track.sample_rate))
                                             .size(11.0)
@@ -88,7 +88,7 @@ impl TransportControls {
                                 }
                             } else {
                                 ui.label(
-                                    RichText::new("No Track Loaded — Choose or drag an audio file")
+                                    RichText::new("No Track Loaded — Open an audio file to start")
                                         .italics()
                                         .size(13.0)
                                         .color(Color32::from_rgb(140, 150, 170)),
@@ -118,7 +118,7 @@ impl TransportControls {
                     let slider_resp = ui.add_sized(
                         [
                             slider_width,
-                            if is_mobile_or_portrait { 28.0 } else { 20.0 },
+                            if is_compact_width { 28.0 } else { 20.0 },
                         ],
                         Slider::new(&mut seek_time, 0.0..=total_duration)
                             .show_value(false)
@@ -139,9 +139,9 @@ impl TransportControls {
 
                 ui.add_space(4.0);
 
-                // Responsive Controls Layout (Wrapped for mobile touch screens)
-                if is_mobile_or_portrait {
-                    // Mobile-first Stacking Layout
+                // Responsive Controls Layout (Wrapped for compact windows)
+                if is_compact_width {
+                    // Compact Wrapped Layout
                     ui.horizontal_wrapped(|ui| {
                         let is_playing = player.is_playing();
                         let play_btn_text = if is_playing { "⏸ Pause" } else { "▶ Play" };

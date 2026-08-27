@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::sync::Arc;
-use web_time::Instant;
+use std::time::Instant;
 
 use eframe::egui;
 #[allow(unused_imports)]
@@ -282,7 +282,7 @@ impl eframe::App for MusializerApp {
                 Err(_) => true,
             };
 
-            // Drag and drop handler (Desktop & Web)
+            // Drag and drop handler (Desktop)
             if let Some(dropped_item) =
                 DragDropOverlay::check_and_render(ui, is_empty, &mut on_open_file_click)
             {

@@ -14,7 +14,7 @@ pub enum DroppedItem {
 pub struct DragDropOverlay;
 
 impl DragDropOverlay {
-    /// Checks for dropped files or renders an appropriate desktop/mobile empty prompt
+    /// Checks for dropped files or renders an appropriate desktop empty prompt
     pub fn check_and_render(
         ui: &mut Ui,
         is_empty: bool,
@@ -22,7 +22,7 @@ impl DragDropOverlay {
     ) -> Option<DroppedItem> {
         let mut dropped_item = None;
 
-        // Desktop & Web drag-and-drop
+        // Desktop drag-and-drop
         let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
         for file in dropped_files {
             if let Some(path) = file.path {
@@ -58,7 +58,6 @@ impl DragDropOverlay {
             }
         }
 
-        let is_mobile = cfg!(any(target_os = "android", target_os = "ios"));
         let is_linux = cfg!(target_os = "linux");
 
         // Draw empty state prompt if no track is loaded
@@ -102,10 +101,10 @@ impl DragDropOverlay {
 
             child_ui.add_space((drop_area_rect.height() * 0.22).max(10.0));
 
-            child_ui.label(RichText::new("🎵").size(if is_mobile { 36.0 } else { 44.0 }));
+            child_ui.label(RichText::new("🎵").size(44.0));
             child_ui.add_space(8.0);
 
-            let main_title = if is_mobile || is_linux {
+            let main_title = if is_linux {
                 "Click to Open Audio File"
             } else {
                 "Drag & Drop Audio File Here"
@@ -113,7 +112,7 @@ impl DragDropOverlay {
 
             child_ui.label(
                 RichText::new(main_title)
-                    .size(if is_mobile { 18.0 } else { 22.0 })
+                    .size(22.0)
                     .strong()
                     .color(Color32::from_rgb(225, 235, 255)),
             );
@@ -127,14 +126,8 @@ impl DragDropOverlay {
 
             child_ui.add_space(18.0);
 
-            let btn_text = if is_mobile {
-                "📂 Choose Audio File"
-            } else {
-                "📂 Open Audio File"
-            };
-
             let open_btn = Button::new(
-                RichText::new(btn_text)
+                RichText::new("📂 Open Audio File")
                     .size(14.0)
                     .strong()
                     .color(Color32::from_rgb(0, 240, 255)),
@@ -148,7 +141,7 @@ impl DragDropOverlay {
             }
         }
 
-        // Highlight viewport if user is currently hovering a file over the window (Desktop/Web)
+        // Highlight viewport if user is currently hovering a file over the window (Desktop)
         let is_hovering_file = ui.ctx().input(|i| !i.raw.hovered_files.is_empty());
         if is_hovering_file {
             let screen_rect = ui.ctx().screen_rect();

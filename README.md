@@ -43,6 +43,17 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
 
 ---
 
+## 🐧 Linux Drag & Drop Note
+
+> [!NOTE]
+> On **Linux Wayland compositors** (such as GNOME Shell, KDE Wayland, Hyprland), cross-application window file drag-and-drop offers are currently subject to upstream `winit` / Wayland `wl_data_device` protocol limitations.
+> 
+> To load audio or custom album art on Linux:
+> - Click anywhere on the center prompt (**"Click to Open Audio File"**) or use the **"📂 Open Audio..."** button in the transport bar to open files directly via the native system file dialog.
+> - Drag-and-drop works out of the box on **Windows** and **macOS**.
+
+---
+
 ## 🏛️ Documentation
 
 - 📐 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): Detailed technical architecture, math equations, and dataflow diagrams.

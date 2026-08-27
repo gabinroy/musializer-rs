@@ -35,7 +35,6 @@ image = { version = "0.25", default-features = false, features = [
     "ico",
     "tiff",
 ] }
-web-time = "1.1"
 
 [package.metadata.bundle]
 name = "Musializer-RS"
