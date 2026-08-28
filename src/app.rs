@@ -48,6 +48,11 @@ pub struct MusializerApp {
     export_width: u32,
     export_height: u32,
 
+    // Export Success Modal State
+    show_export_success_modal: bool,
+    exported_video_path: Option<PathBuf>,
+    export_thumbnail_texture: Option<TextureHandle>,
+
     error_msg: Option<String>,
 }
 
@@ -93,6 +98,10 @@ impl MusializerApp {
             export_fps: 60,
             export_width: 1920,
             export_height: 1080,
+
+            show_export_success_modal: false,
+            exported_video_path: None,
+            export_thumbnail_texture: None,
 
             error_msg: None,
         }
@@ -224,6 +233,42 @@ fn load_default_logo(
     (None, None)
 }
 
+/// Helper to launch the default system video player for the given file
+fn open_media_file(path: &std::path::Path) {
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open").arg(path).spawn();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open").arg(path).spawn();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path.to_string_lossy()])
+            .spawn();
+    }
+}
+
+/// Helper to open the containing directory in system file explorer
+fn open_containing_folder(path: &std::path::Path) {
+    if let Some(parent) = path.parent() {
+        #[cfg(target_os = "linux")]
+        {
+            let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("open").arg(parent).spawn();
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let _ = std::process::Command::new("explorer").arg(parent).spawn();
+        }
+    }
+}
+
 impl eframe::App for MusializerApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Continuous repaint for 60+ FPS fluid rendering
@@ -232,6 +277,19 @@ impl eframe::App for MusializerApp {
         let now = Instant::now();
         let dt = (now - self.last_frame_time).as_secs_f32().min(0.1);
         self.last_frame_time = now;
+
+        // Check if export just completed to trigger thumbnail & success modal
+        if let Some((exported_path, thumb_img)) = self.exporter.take_completed_result() {
+            if let Some(img) = thumb_img {
+                let size = [img.width() as usize, img.height() as usize];
+                let color_img = ColorImage::from_rgba_unmultiplied(size, img.as_raw());
+                self.export_thumbnail_texture =
+                    Some(ctx.load_texture("export_thumbnail", color_img, TextureOptions::LINEAR));
+            }
+            self.exported_video_path = Some(exported_path);
+            self.show_export_modal = false;
+            self.show_export_success_modal = true;
+        }
 
         ctx.input(|i| {
             if !i.raw.dropped_files.is_empty() {
@@ -396,12 +454,12 @@ impl eframe::App for MusializerApp {
             }
         }
 
-        // Open Export / Screen Record Modal
+        // Open Export Modal
         if on_export_click {
             self.show_export_modal = true;
         }
 
-        // Modal Dialog
+        // Modal Dialog: Export Configuration & Progress
         if self.show_export_modal {
             let mut is_open = true;
             let mut close_modal = false;
@@ -412,7 +470,7 @@ impl eframe::App for MusializerApp {
                 .collapsible(false)
                 .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
                 .show(ctx, |ui| {
-                    ui.set_min_width(380.0);
+                    ui.set_min_width(400.0);
 
                     let is_exporting = self.exporter.is_exporting();
 
@@ -523,6 +581,7 @@ impl eframe::App for MusializerApp {
                                             num_bands: self.num_bands,
                                             center_display: self.circle_center_display,
                                             center_image: self.raw_cover_image.clone(),
+                                            track_title: Some(track.title.clone()),
                                         };
 
                                         let _ =
@@ -539,6 +598,151 @@ impl eframe::App for MusializerApp {
                 });
 
             self.show_export_modal = is_open && !close_modal;
+        }
+
+        // Modal Dialog: Export Success Screen with Thumbnail & Playback
+        if self.show_export_success_modal {
+            let mut is_open = true;
+            let mut close_modal = false;
+
+            Window::new("🎉 Export Complete")
+                .open(&mut is_open)
+                .resizable(false)
+                .collapsible(false)
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(ctx, |ui| {
+                    ui.set_min_width(420.0);
+
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(6.0);
+                        ui.heading(
+                            RichText::new("Video Rendered Successfully!")
+                                .color(Color32::from_rgb(0, 245, 200))
+                                .strong(),
+                        );
+                        ui.add_space(4.0);
+
+                        if let Some(path) = &self.exported_video_path {
+                            ui.label(
+                                RichText::new(format!(
+                                    "Saved to: {}",
+                                    path.file_name().unwrap_or_default().to_string_lossy()
+                                ))
+                                .color(Color32::from_rgb(170, 190, 210))
+                                .size(12.0),
+                            );
+                        }
+                        ui.add_space(10.0);
+
+                        // Interactive Video Thumbnail Preview Card
+                        if let Some(tex) = &self.export_thumbnail_texture {
+                            let thumb_width = 380.0;
+                            let thumb_height = 380.0 * 9.0 / 16.0;
+                            let (rect, response) = ui.allocate_exact_size(
+                                egui::vec2(thumb_width, thumb_height),
+                                egui::Sense::click(),
+                            );
+
+                            let painter = ui.painter();
+                            // Thumbnail background image
+                            let uv = egui::Rect::from_min_max(
+                                egui::pos2(0.0, 0.0),
+                                egui::pos2(1.0, 1.0),
+                            );
+                            painter.image(tex.id(), rect, uv, Color32::WHITE);
+
+                            // Dark overlay tint
+                            let is_hovered = response.hovered();
+                            let overlay_alpha = if is_hovered { 60 } else { 100 };
+                            painter.rect_filled(
+                                rect,
+                                8.0,
+                                Color32::from_black_alpha(overlay_alpha),
+                            );
+
+                            // Border outline with neon accent on hover
+                            let border_color = if is_hovered {
+                                Color32::from_rgb(0, 240, 255)
+                            } else {
+                                Color32::from_rgba_unmultiplied(255, 255, 255, 40)
+                            };
+                            painter.rect_stroke(rect, 8.0, egui::Stroke::new(2.0_f32, border_color));
+
+                            // Play button circle & triangle icon in center
+                            let center = rect.center();
+                            let circle_radius = if is_hovered { 30.0 } else { 26.0 };
+                            let circle_col = if is_hovered {
+                                Color32::from_rgb(0, 240, 255)
+                            } else {
+                                Color32::from_rgba_unmultiplied(20, 24, 36, 210)
+                            };
+                            let icon_col = if is_hovered {
+                                Color32::from_rgb(10, 14, 24)
+                            } else {
+                                Color32::WHITE
+                            };
+
+                            painter.circle_filled(center, circle_radius, circle_col);
+                            painter.circle_stroke(
+                                center,
+                                circle_radius,
+                                egui::Stroke::new(1.5_f32, Color32::from_rgb(0, 240, 255)),
+                            );
+
+                            // Play triangle
+                            let tri_size = 10.0;
+                            let p1 = center + egui::vec2(-tri_size * 0.6, -tri_size);
+                            let p2 = center + egui::vec2(-tri_size * 0.6, tri_size);
+                            let p3 = center + egui::vec2(tri_size * 1.0, 0.0);
+                            painter.add(egui::Shape::convex_polygon(
+                                vec![p1, p2, p3],
+                                icon_col,
+                                egui::Stroke::NONE,
+                            ));
+
+                            if response.clicked() {
+                                if let Some(path) = &self.exported_video_path {
+                                    open_media_file(path);
+                                }
+                            }
+
+                            if is_hovered {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                        }
+
+                        ui.add_space(14.0);
+
+                        ui.horizontal(|ui| {
+                            ui.add_space(20.0);
+                            if ui
+                                .button(
+                                    RichText::new("▶ Play Video")
+                                        .color(Color32::from_rgb(0, 240, 255))
+                                        .strong(),
+                                )
+                                .clicked()
+                            {
+                                if let Some(path) = &self.exported_video_path {
+                                    open_media_file(path);
+                                }
+                            }
+
+                            if ui.button("📁 Open Folder").clicked() {
+                                if let Some(path) = &self.exported_video_path {
+                                    open_containing_folder(path);
+                                }
+                            }
+
+                            if ui.button("Done").clicked() {
+                                close_modal = true;
+                            }
+                        });
+                        ui.add_space(6.0);
+                    });
+                });
+
+            self.show_export_success_modal = is_open && !close_modal;
         }
     }
 }

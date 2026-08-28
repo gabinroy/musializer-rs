@@ -23,6 +23,7 @@ pub struct ExportConfig {
     pub num_bands: usize,
     pub center_display: CircleCenterDisplay,
     pub center_image: Option<Arc<image::RgbaImage>>,
+    pub track_title: Option<String>,
 }
 
 impl Default for ExportConfig {
@@ -37,6 +38,7 @@ impl Default for ExportConfig {
             num_bands: 80,
             center_display: CircleCenterDisplay::None,
             center_image: None,
+            track_title: None,
         }
     }
 }
@@ -45,6 +47,8 @@ pub struct VideoExporter {
     is_exporting: Arc<AtomicBool>,
     progress: Arc<std::sync::Mutex<f32>>,
     status_msg: Arc<std::sync::Mutex<String>>,
+    thumbnail: Arc<std::sync::Mutex<Option<image::RgbaImage>>>,
+    last_exported_path: Arc<std::sync::Mutex<Option<PathBuf>>>,
 }
 
 impl VideoExporter {
@@ -53,6 +57,8 @@ impl VideoExporter {
             is_exporting: Arc::new(AtomicBool::new(false)),
             progress: Arc::new(std::sync::Mutex::new(0.0)),
             status_msg: Arc::new(std::sync::Mutex::new(String::new())),
+            thumbnail: Arc::new(std::sync::Mutex::new(None)),
+            last_exported_path: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
@@ -69,6 +75,16 @@ impl VideoExporter {
             .lock()
             .map(|s| s.clone())
             .unwrap_or_default()
+    }
+
+    pub fn take_completed_result(&self) -> Option<(PathBuf, Option<image::RgbaImage>)> {
+        let mut path_lock = self.last_exported_path.lock().ok()?;
+        if let Some(path) = path_lock.take() {
+            let thumb = self.thumbnail.lock().ok().and_then(|mut t| t.take());
+            Some((path, thumb))
+        } else {
+            None
+        }
     }
 
     pub fn cancel(&self) {
@@ -102,10 +118,15 @@ impl VideoExporter {
         self.is_exporting.store(true, Ordering::Release);
         *self.progress.lock().unwrap() = 0.0;
         *self.status_msg.lock().unwrap() = "Initializing video export...".to_string();
+        *self.thumbnail.lock().unwrap() = None;
+        *self.last_exported_path.lock().unwrap() = None;
 
         let is_exporting_flag = Arc::clone(&self.is_exporting);
         let progress_arc = Arc::clone(&self.progress);
         let status_arc = Arc::clone(&self.status_msg);
+        let thumb_arc = Arc::clone(&self.thumbnail);
+        let output_path_arc = Arc::clone(&self.last_exported_path);
+        let out_path = config.output_path.clone();
 
         thread::spawn(move || {
             let res = run_export_thread(
@@ -114,6 +135,7 @@ impl VideoExporter {
                 &is_exporting_flag,
                 &progress_arc,
                 &status_arc,
+                &thumb_arc,
             );
 
             is_exporting_flag.store(false, Ordering::Release);
@@ -124,6 +146,7 @@ impl VideoExporter {
             } else {
                 *progress_arc.lock().unwrap() = 1.0;
                 *status_arc.lock().unwrap() = "Export completed successfully! 🎉".to_string();
+                *output_path_arc.lock().unwrap() = Some(out_path);
             }
         });
 
@@ -143,6 +166,7 @@ fn run_export_thread(
     is_exporting: &AtomicBool,
     progress: &std::sync::Mutex<f32>,
     status: &std::sync::Mutex<String>,
+    thumbnail_out: &std::sync::Mutex<Option<image::RgbaImage>>,
 ) -> Result<(), String> {
     let mut stepper = OfflineStepper::new(track.clone(), config.fps);
     let mut rasterizer = OffscreenRasterizer::new(config.width, config.height);
@@ -152,6 +176,7 @@ fn run_export_thread(
     let bands_mapper = FrequencyBands::new(config.num_bands, fft_size, track.sample_rate);
     let mut smoother = EmaSmoother::new(config.num_bands, 0.85, 0.15);
     let dt = 1.0 / config.fps as f32;
+    let total_time = track.duration_seconds as f64;
 
     *status.lock().unwrap() = format!(
         "Spawning FFmpeg encoder ({}x{} @ {}fps)...",
@@ -207,6 +232,8 @@ fn run_export_thread(
         .ok_or_else(|| "Failed to capture FFmpeg stdin pipe".to_string())?;
 
     let total_frames = stepper.total_frames();
+    let thumb_frame_target = (total_frames / 4).max(1);
+    let mut captured_thumb = false;
 
     while let Some((frame_idx, pcm_window, prog)) = stepper.next_step(fft_size) {
         if !is_exporting.load(Ordering::Relaxed) {
@@ -219,6 +246,8 @@ fn run_export_thread(
         let raw_bands = bands_mapper.aggregate(&magnitudes, 1.2);
         smoother.update(&raw_bands, dt);
 
+        let current_time = frame_idx as f64 / config.fps as f64;
+
         // Rasterize frame
         let frame_bytes = rasterizer.render_frame(
             config.mode,
@@ -228,11 +257,19 @@ fn run_export_thread(
             &pcm_window,
             config.center_display,
             config.center_image.as_deref(),
+            current_time,
+            total_time,
+            config.track_title.as_deref(),
         );
 
         // Write raw RGBA frame to FFmpeg stdin
         if let Err(e) = stdin.write_all(frame_bytes) {
             return Err(format!("Failed writing frame to FFmpeg pipe: {}", e));
+        }
+
+        if !captured_thumb && frame_idx >= thumb_frame_target {
+            *thumbnail_out.lock().unwrap() = Some(rasterizer.to_rgba_image());
+            captured_thumb = true;
         }
 
         if frame_idx % 30 == 0 {

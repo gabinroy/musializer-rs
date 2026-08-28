@@ -25,11 +25,7 @@ impl TransportControls {
             .fill(Color32::from_rgb(18, 22, 32))
             .stroke(Stroke::new(1.0_f32, Color32::from_rgb(35, 42, 60)))
             .rounding(Rounding::same(8.0))
-            .inner_margin(Margin::same(if is_compact_width {
-                12.0
-            } else {
-                10.0
-            }))
+            .inner_margin(Margin::same(if is_compact_width { 12.0 } else { 10.0 }))
             .show(ui, |ui| {
                 // Top metadata and action row
                 ui.horizontal(|ui| {
@@ -116,10 +112,7 @@ impl TransportControls {
                     let available = ui.available_width();
                     let slider_width = (available - 55.0).max(60.0);
                     let slider_resp = ui.add_sized(
-                        [
-                            slider_width,
-                            if is_compact_width { 28.0 } else { 20.0 },
-                        ],
+                        [slider_width, if is_compact_width { 28.0 } else { 20.0 }],
                         Slider::new(&mut seek_time, 0.0..=total_duration)
                             .show_value(false)
                             .trailing_fill(true),
