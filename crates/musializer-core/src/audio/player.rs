@@ -15,16 +15,11 @@ pub struct AudioPlayer {
 
 impl AudioPlayer {
     pub fn new() -> Result<Self, String> {
-        let host = cpal::default_host();
-        let device = host
-            .default_output_device()
-            .ok_or_else(|| "No default audio output device found".to_string())?;
-
-        let default_config = device
-            .default_output_config()
-            .map_err(|e| format!("Failed to query default output config: {}", e))?;
-
-        let device_sample_rate = default_config.sample_rate();
+        let device_sample_rate = if let Some(device) = cpal::default_host().default_output_device() {
+            device.default_output_config().map(|c| c.sample_rate()).unwrap_or(48000)
+        } else {
+            48000
+        };
 
         Ok(Self {
             _stream: None,
@@ -69,7 +64,7 @@ impl AudioPlayer {
             cpal::SampleFormat::F32 => device.build_output_stream(
                 config,
                 move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    write_audio_data(
+                    write_audio_data_f32(
                         data,
                         channels,
                         &track_for_stream,
@@ -83,6 +78,52 @@ impl AudioPlayer {
                 err_fn,
                 None,
             ),
+            cpal::SampleFormat::I16 => {
+                let track_for_stream_i16 = Arc::clone(&track_arc);
+                let frame_atomic_i16 = self.sync.frame_handle();
+                let playing_atomic_i16 = self.sync.playing_handle();
+                let volume_arc_i16 = Arc::clone(&self.volume);
+                device.build_output_stream(
+                    config,
+                    move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
+                        write_audio_data_i16(
+                            data,
+                            channels,
+                            &track_for_stream_i16,
+                            &frame_atomic_i16,
+                            &playing_atomic_i16,
+                            &volume_arc_i16,
+                            device_sr,
+                            track_sr,
+                        );
+                    },
+                    err_fn,
+                    None,
+                )
+            }
+            cpal::SampleFormat::U16 => {
+                let track_for_stream_u16 = Arc::clone(&track_arc);
+                let frame_atomic_u16 = self.sync.frame_handle();
+                let playing_atomic_u16 = self.sync.playing_handle();
+                let volume_arc_u16 = Arc::clone(&self.volume);
+                device.build_output_stream(
+                    config,
+                    move |data: &mut [u16], _: &cpal::OutputCallbackInfo| {
+                        write_audio_data_u16(
+                            data,
+                            channels,
+                            &track_for_stream_u16,
+                            &frame_atomic_u16,
+                            &playing_atomic_u16,
+                            &volume_arc_u16,
+                            device_sr,
+                            track_sr,
+                        );
+                    },
+                    err_fn,
+                    None,
+                )
+            }
             _ => {
                 return Err(format!(
                     "Unsupported output sample format: {:?}",
@@ -173,7 +214,7 @@ impl AudioPlayer {
     }
 }
 
-fn write_audio_data(
+fn write_audio_data_f32(
     output: &mut [f32],
     device_channels: usize,
     track: &AudioTrack,
@@ -219,6 +260,124 @@ fn write_audio_data(
             frame_chunk[1] = right;
             for s in &mut frame_chunk[2..] {
                 *s = 0.0;
+            }
+        }
+
+        if sample_ratio == 1.0 {
+            current_frame += 1;
+        } else {
+            current_frame = (current_frame as f64 + sample_ratio) as usize;
+        }
+    }
+
+    frame_atomic.store(current_frame, Ordering::Release);
+}
+
+fn write_audio_data_i16(
+    output: &mut [i16],
+    device_channels: usize,
+    track: &AudioTrack,
+    frame_atomic: &AtomicUsize,
+    playing_atomic: &AtomicBool,
+    volume_arc: &Arc<Mutex<f32>>,
+    device_sr: f64,
+    track_sr: f64,
+) {
+    let is_playing = playing_atomic.load(Ordering::Relaxed);
+    if !is_playing {
+        output.fill(0);
+        return;
+    }
+
+    let vol = volume_arc.lock().map(|v| *v).unwrap_or(1.0);
+    let total_frames = track.samples.len() / 2;
+    let mut current_frame = frame_atomic.load(Ordering::Relaxed);
+    let sample_ratio = track_sr / device_sr;
+
+    for frame_chunk in output.chunks_mut(device_channels) {
+        if current_frame >= total_frames {
+            playing_atomic.store(false, Ordering::Release);
+            for s in frame_chunk.iter_mut() {
+                *s = 0;
+            }
+            continue;
+        }
+
+        let track_sample_idx = current_frame * 2;
+        let left = (track.samples.get(track_sample_idx).copied().unwrap_or(0.0) * vol)
+            .clamp(-1.0, 1.0)
+            * 32767.0;
+        let right = (track.samples.get(track_sample_idx + 1).copied().unwrap_or(0.0) * vol)
+            .clamp(-1.0, 1.0)
+            * 32767.0;
+
+        if device_channels == 1 {
+            frame_chunk[0] = ((left + right) * 0.5) as i16;
+        } else if device_channels >= 2 {
+            frame_chunk[0] = left as i16;
+            frame_chunk[1] = right as i16;
+            for s in &mut frame_chunk[2..] {
+                *s = 0;
+            }
+        }
+
+        if sample_ratio == 1.0 {
+            current_frame += 1;
+        } else {
+            current_frame = (current_frame as f64 + sample_ratio) as usize;
+        }
+    }
+
+    frame_atomic.store(current_frame, Ordering::Release);
+}
+
+fn write_audio_data_u16(
+    output: &mut [u16],
+    device_channels: usize,
+    track: &AudioTrack,
+    frame_atomic: &AtomicUsize,
+    playing_atomic: &AtomicBool,
+    volume_arc: &Arc<Mutex<f32>>,
+    device_sr: f64,
+    track_sr: f64,
+) {
+    let is_playing = playing_atomic.load(Ordering::Relaxed);
+    if !is_playing {
+        output.fill(32768);
+        return;
+    }
+
+    let vol = volume_arc.lock().map(|v| *v).unwrap_or(1.0);
+    let total_frames = track.samples.len() / 2;
+    let mut current_frame = frame_atomic.load(Ordering::Relaxed);
+    let sample_ratio = track_sr / device_sr;
+
+    for frame_chunk in output.chunks_mut(device_channels) {
+        if current_frame >= total_frames {
+            playing_atomic.store(false, Ordering::Release);
+            for s in frame_chunk.iter_mut() {
+                *s = 32768;
+            }
+            continue;
+        }
+
+        let track_sample_idx = current_frame * 2;
+        let left = ((track.samples.get(track_sample_idx).copied().unwrap_or(0.0) * vol)
+            .clamp(-1.0, 1.0)
+            + 1.0)
+            * 32767.5;
+        let right = ((track.samples.get(track_sample_idx + 1).copied().unwrap_or(0.0) * vol)
+            .clamp(-1.0, 1.0)
+            + 1.0)
+            * 32767.5;
+
+        if device_channels == 1 {
+            frame_chunk[0] = ((left + right) * 0.5) as u16;
+        } else if device_channels >= 2 {
+            frame_chunk[0] = left as u16;
+            frame_chunk[1] = right as u16;
+            for s in &mut frame_chunk[2..] {
+                *s = 32768;
             }
         }
 

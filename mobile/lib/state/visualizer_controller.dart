@@ -46,6 +46,7 @@ class VisualizerController extends ChangeNotifier {
 
   Ticker? _ticker;
   Duration _lastTick = Duration.zero;
+  bool _isTicking = false;
 
   Future<void> init() async {
     if (_initialized) return;
@@ -76,13 +77,13 @@ class VisualizerController extends ChangeNotifier {
 
   Future<void> pickAndLoadAudio() async {
     try {
-      final List<PlatformFile>? files = await FilePicker.pickFiles(
+      final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['mp3', 'wav', 'flac', 'ogg', 'aac', 'm4a'],
       );
 
-      if (files != null && files.isNotEmpty) {
-        final path = files.first.path;
+      if (result != null && result.files.isNotEmpty) {
+        final path = result.files.first.path;
         if (path != null) {
           final track = await rust_api.loadAudioFile(path: path);
           _currentTrack = track;
@@ -123,40 +124,40 @@ class VisualizerController extends ChangeNotifier {
   }
 
   void _onTick(Duration elapsed) async {
-    if (!_initialized) return;
+    if (!_initialized || _isTicking) return;
+    _isTicking = true;
 
-    final double dt = _lastTick == Duration.zero
-        ? 0.016
-        : (elapsed - _lastTick).inMicroseconds / 1000000.0;
-    _lastTick = elapsed;
+    try {
+      final double dt = _lastTick == Duration.zero
+          ? 0.016
+          : (elapsed - _lastTick).inMicroseconds / 1000000.0;
+      _lastTick = elapsed;
 
-    final playing = await rust_api.isPlaying();
-    if (playing != _isPlaying) {
-      _isPlaying = playing;
-    }
+      final newSpectrum = await rust_api.getSpectrum(dt: dt);
+      if (newSpectrum.isNotEmpty) {
+        _spectrum = newSpectrum;
 
-    if (_isPlaying) {
-      _currentTime = await rust_api.currentTime();
-    }
-
-    final newSpectrum = await rust_api.getSpectrum(dt: dt);
-    if (newSpectrum.isNotEmpty) {
-      _spectrum = newSpectrum;
-
-      // Update Peak-Hold Decay
-      if (_peaks.length != newSpectrum.length) {
-        _peaks = List.filled(newSpectrum.length, 0.0);
-      }
-      for (int i = 0; i < newSpectrum.length; i++) {
-        if (newSpectrum[i] > _peaks[i]) {
-          _peaks[i] = newSpectrum[i];
-        } else {
-          _peaks[i] = math.max(0.0, _peaks[i] - 0.4 * dt);
+        // Update Peak-Hold Decay
+        if (_peaks.length != newSpectrum.length) {
+          _peaks = List.filled(newSpectrum.length, 0.0);
+        }
+        for (int i = 0; i < newSpectrum.length; i++) {
+          if (newSpectrum[i] > _peaks[i]) {
+            _peaks[i] = newSpectrum[i];
+          } else {
+            _peaks[i] = math.max(0.0, _peaks[i] - 0.4 * dt);
+          }
         }
       }
-    }
 
-    notifyListeners();
+      if (_isPlaying) {
+        _currentTime = await rust_api.currentTime();
+      }
+
+      notifyListeners();
+    } finally {
+      _isTicking = false;
+    }
   }
 
   @override

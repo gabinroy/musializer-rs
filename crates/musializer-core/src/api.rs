@@ -160,3 +160,20 @@ pub unsafe extern "C" fn Java_com_musializer_mobile_MainActivity_initAndroidCont
         }
     }
 }
+
+#[cfg(target_os = "android")]
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn JNI_OnLoad(
+    vm: *mut jni::sys::JavaVM,
+    _reserved: *mut std::ffi::c_void,
+) -> jni::sys::jint {
+    let context_null: jni::sys::jobject = std::ptr::null_mut();
+    unsafe {
+        ndk_context::initialize_android_context(
+            vm as *mut std::ffi::c_void,
+            context_null as *mut std::ffi::c_void,
+        );
+    }
+    jni::sys::JNI_VERSION_1_6
+}
