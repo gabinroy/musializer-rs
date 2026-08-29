@@ -2292,8 +2292,10 @@ dependencies = [
  "cpal",
  "crossbeam-channel",
  "flutter_rust_bridge",
+ "jni 0.22.4",
  "lazy_static",
  "log",
+ "ndk-context",
  "rustfft",
  "symphonia",
 ]

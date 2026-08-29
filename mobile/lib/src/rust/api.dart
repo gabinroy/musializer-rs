@@ -4,7 +4,6 @@
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
 import 'frb_generated.dart';
-
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ENGINE`
@@ -52,7 +51,6 @@ Future<double> durationSeconds() =>
 Future<void> setGainMultiplier({required double gain}) =>
     RustLib.instance.api.crateApiSetGainMultiplier(gain: gain);
 
-/// Computes smoothed frequency bands at real-time 60/120 FPS
 Future<Float32List> getSpectrum({required double dt}) =>
     RustLib.instance.api.crateApiGetSpectrum(dt: dt);
 

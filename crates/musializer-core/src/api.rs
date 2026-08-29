@@ -131,7 +131,6 @@ pub fn set_gain_multiplier(gain: f32) {
     }
 }
 
-/// Computes smoothed frequency bands at real-time 60/120 FPS
 pub fn get_spectrum(dt: f32) -> Vec<f32> {
     if let Ok(mut lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_mut() {
@@ -139,4 +138,25 @@ pub fn get_spectrum(dt: f32) -> Vec<f32> {
         }
     }
     Vec::new()
+}
+
+// Android JNI initializer for ndk-context / CPAL / AAudio
+#[cfg(target_os = "android")]
+#[allow(non_snake_case)]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn Java_com_musializer_mobile_MainActivity_initAndroidContext(
+    env: *mut jni::sys::JNIEnv,
+    _class: jni::sys::jclass,
+    context: jni::sys::jobject,
+) {
+    let mut vm: *mut jni::sys::JavaVM = std::ptr::null_mut();
+    if unsafe { ((**env).v1_1.GetJavaVM)(env, &mut vm) } == 0 && !vm.is_null() {
+        let global_context = unsafe { ((**env).v1_1.NewGlobalRef)(env, context) };
+        unsafe {
+            ndk_context::initialize_android_context(
+                vm as *mut std::ffi::c_void,
+                global_context as *mut std::ffi::c_void,
+            );
+        }
+    }
 }
