@@ -138,9 +138,13 @@ impl TransportControls {
                                     .size(12.0),
                             );
 
+                            // The slider's painted width is driven by `spacing.slider_width`
+                            // (default 100px). `add_sized` only grew the hover region, leaving a
+                            // short bar with a large gap. Setting `slider_width` to the available
+                            // space makes it stretch to fill the middle (egui's flex-grow: 1).
                             let available_slider_width = ui.available_width().max(40.0);
-                            let slider_resp = ui.add_sized(
-                                [available_slider_width, 18.0],
+                            ui.spacing_mut().slider_width = available_slider_width;
+                            let slider_resp = ui.add(
                                 Slider::new(&mut seek_time, 0.0..=total_duration)
                                     .show_value(false)
                                     .trailing_fill(true),
