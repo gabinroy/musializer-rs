@@ -54,6 +54,22 @@ Future<void> setGainMultiplier({required double gain}) =>
 Future<Float32List> getSpectrum({required double dt}) =>
     RustLib.instance.api.crateApiGetSpectrum(dt: dt);
 
+/// Computes the exact deterministic FFT frequency spectrum for all video frames offline.
+/// Returns flattened Float32 list with total_frames * num_bands elements.
+Future<Float32List> getOfflineSpectrumFrames({
+  required int fps,
+  required BigInt numBands,
+  required double gainMultiplier,
+}) => RustLib.instance.api.crateApiGetOfflineSpectrumFrames(
+  fps: fps,
+  numBands: numBands,
+  gainMultiplier: gainMultiplier,
+);
+
+/// Extracts 16-bit signed PCM audio bytes for offline video export (stereo, 44100Hz)
+Future<Uint8List> getOfflineAudioPcm() =>
+    RustLib.instance.api.crateApiGetOfflineAudioPcm();
+
 class MobileTrackInfo {
   final String title;
   final double durationSeconds;
