@@ -1,7 +1,7 @@
 # Maintainer: Gabin Roy <gabinroy@users.noreply.github.com>
 pkgname=musializer-rs-bin
 _pkgname=musializer-rs
-pkgver=0.1.0
+pkgver=1.0.0
 pkgrel=1
 pkgdesc="High-Performance GPU-Accelerated Audio Visualizer in Rust"
 arch=('x86_64')

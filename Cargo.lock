@@ -2287,7 +2287,7 @@ dependencies = [
 
 [[package]]
 name = "musializer-core"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "cpal",
  "crossbeam-channel",
@@ -2302,7 +2302,7 @@ dependencies = [
 
 [[package]]
 name = "musializer-desktop"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "cpal",
  "crossbeam-channel",

@@ -23,7 +23,7 @@ This guide explains how to set up the credentials and accounts for automated pac
 2. Name: `AUR_SSH_PRIVATE_KEY`
 3. Value: Paste the entire content of your private key (`~/.ssh/aur_key`).
 
-> 🎉 Every tag push (`v0.1.0`, etc.) will now automatically update the AUR package!
+> 🎉 Every tag push (`v1.0.0`, etc.) will now automatically update the AUR package!
 
 ---
 

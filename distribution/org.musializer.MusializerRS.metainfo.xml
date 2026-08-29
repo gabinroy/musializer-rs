@@ -31,14 +31,9 @@
   </provides>
 
   <releases>
-    <release version="0.1.1" date="2026-08-29">
+    <release version="1.0.0" date="2026-08-29">
       <description>
-        <p>Cross-platform release packaging improvements including macOS .dmg disk images, updated Linux bundles, and self-update stability fixes.</p>
-      </description>
-    </release>
-    <release version="0.1.0" date="2026-08-29">
-      <description>
-        <p>Initial release with GPU rendering, multi-format audio playback, and in-app automated updates.</p>
+        <p>Musializer-RS v1.0.0 Major Release: Full cross-platform release with high-performance desktop visualizer and newly launched 120 FPS Flutter mobile application with offline MP4 video export and in-app auto-updates.</p>
       </description>
     </release>
   </releases>

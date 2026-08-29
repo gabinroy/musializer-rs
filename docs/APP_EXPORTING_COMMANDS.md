@@ -90,16 +90,16 @@ The repository includes a unified CI/CD workflow located at [`.github/workflows/
 
 ### Triggering a Release via Git Tag:
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ### Triggering a Release Manually (with Custom Release Notes):
 1. Navigate to **Actions** $\rightarrow$ **Release Build & Publish** in your GitHub repository.
 2. Click **Run workflow**.
 3. Fill in the release parameters:
-   - **Release Tag** (e.g., `v0.1.0`)
-   - **Release Title** (e.g., `Musializer v0.1.0 — Initial Release`)
+   - **Release Tag** (e.g., `v1.0.0`)
+   - **Release Title** (e.g., `Musializer v1.0.0 — Initial Release`)
    - **Custom Release Notes** (Markdown notes describing what changed)
 4. Click **Run workflow**.
 

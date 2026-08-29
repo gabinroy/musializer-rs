@@ -2,7 +2,7 @@ name: mobile
 description: "High-Performance GPU-Accelerated Audio Visualizer"
 publish_to: 'none'
 
-version: 0.1.1+1
+version: 1.0.0+1
 
 environment:
   sdk: ^3.7.0
