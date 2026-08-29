@@ -1,122 +1,160 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'models/visualizer_mode.dart';
+import 'painters/bars_painter.dart';
+import 'painters/circular_painter.dart';
+import 'painters/waveform_painter.dart';
+import 'src/rust/frb_generated.dart';
+import 'state/visualizer_controller.dart';
+import 'widgets/playback_controls.dart';
+import 'widgets/track_header.dart';
+import 'widgets/visualizer_mode_bar.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // High-performance edge-to-edge styling
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFF0A0B10),
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  await RustLib.init();
+  runApp(const MusializerApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MusializerApp extends StatelessWidget {
+  const MusializerApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+      title: 'Musializer-RS Mobile',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        scaffoldBackgroundColor: const Color(0xFF0A0B10),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const VisualizerHomeScreen(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class VisualizerHomeScreen extends StatefulWidget {
+  const VisualizerHomeScreen({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<VisualizerHomeScreen> createState() => _VisualizerHomeScreenState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
+  late final VisualizerController _controller;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _controller = VisualizerController();
+    _controller.init();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        final theme = _controller.theme;
+
+        return Scaffold(
+          backgroundColor: theme.background,
+          body: SafeArea(
+            child: Column(
+              children: [
+                // Top Track Branding Header
+                TrackHeader(
+                  track: _controller.currentTrack,
+                  theme: theme,
+                  onPickAudio: _controller.pickAndLoadAudio,
+                ),
+
+                // Visualizer Mode Switcher & Palette Bar
+                VisualizerModeBar(
+                  currentMode: _controller.mode,
+                  currentTheme: theme,
+                  onModeChanged: _controller.setMode,
+                  onThemeChanged: _controller.setTheme,
+                ),
+
+                // Main 120 FPS Visualizer Canvas
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(20.0),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.05),
+                          ),
+                        ),
+                        child: CustomPaint(
+                          painter: _buildPainter(theme),
+                          size: Size.infinite,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Playback Controls (Seek timeline, volume, play/pause)
+                PlaybackControls(
+                  isPlaying: _controller.isPlaying,
+                  currentTime: _controller.currentTime,
+                  duration: _controller.duration,
+                  volume: _controller.volume,
+                  gainMultiplier: _controller.gainMultiplier,
+                  theme: theme,
+                  onTogglePlay: _controller.togglePlayPause,
+                  onSeek: _controller.seek,
+                  onVolumeChanged: _controller.setVolume,
+                  onGainChanged: _controller.setGainMultiplier,
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  CustomPainter _buildPainter(theme) {
+    switch (_controller.mode) {
+      case VisualizerMode.spectrumBars:
+        return BarsPainter(
+          spectrum: _controller.spectrum,
+          peaks: _controller.peaks,
+          theme: theme,
+        );
+      case VisualizerMode.circular:
+        return CircularPainter(
+          spectrum: _controller.spectrum,
+          theme: theme,
+        );
+      case VisualizerMode.waveform:
+        return WaveformPainter(
+          spectrum: _controller.spectrum,
+          theme: theme,
+        );
+    }
   }
 }
