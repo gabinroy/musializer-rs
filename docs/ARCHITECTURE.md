@@ -34,6 +34,8 @@ graph TD
         FRBBridge --> TickerController["VisualizerController (120 FPS Real-Time Ticker)"]
         TickerController --> CustomPainter["CustomPainter GPU Visualizer (Bars, Radial, Waveform)"]
         TickerController --> MobileControls["Seek Timeline, Palettes, Gain & Volume Controls"]
+        TickerController --> MobileExporter["Hardware MP4 Video Exporter (9:16 & 16:9)"]
+        TickerController --> MobileUpdater["In-App GitHub Auto-Updater & APK Installer"]
     end
 ```
 
@@ -67,11 +69,12 @@ musializer-rs/
 │
 └── mobile/                             # 120 FPS Flutter mobile application (Android & iOS)
     ├── lib/
-    │   ├── main.dart                   # Mobile app entry point
-    │   ├── models/                     # Visualizer modes & color themes
+    │   ├── main.dart                   # Mobile app entry point & lifecycle manager
+    │   ├── models/                     # Visualizer modes, themes, center displays
     │   ├── painters/                   # CustomPainter GPU visualizers (Bars, Radial, Waveform)
+    │   ├── services/                   # Hardware MP4 video encoder & GitHub auto-updater
     │   ├── state/                      # VisualizerController & 120 FPS ticker
-    │   └── widgets/                    # Header, mode switcher, seek timeline, controls
+    │   └── widgets/                    # Header, mode bar, update dialog, export modal
     ├── android/                        # Android Gradle configuration & permissions
     └── ios/                            # iOS Runner & background audio capability
 ```
@@ -109,9 +112,14 @@ musializer-rs/
 - **Bridge Layer (`flutter_rust_bridge`)**: Exposes zero-copy typed arrays (`Float32List`) from `musializer-core` directly to Dart.
 - **120 FPS Visualizer Engine (`CustomPainter`)**:
   1. 📊 **Spectrum Bars (`painters/bars_painter.dart`)**: 64 frequency bars with neon gradients and floating peak caps.
-  2. ⭕ **Radial Pulse (`painters/circular_painter.dart`)**: 360° radial frequency rays with a bass-reactive pulsing center.
+  2. ⭕ **Radial Pulse (`painters/circular_painter.dart`)**: 360° radial frequency rays with a bass-reactive pulsing center (Custom Cover with logo fallback, Track Title, Elapsed/Remaining Time, Glow Core).
   3. 🌊 **Smooth Wave (`painters/waveform_painter.dart`)**: Cubic Bezier ribbon oscilloscope waves.
-- **State & Lifecycle (`state/visualizer_controller.dart`)**: Flutter `Ticker` loop querying `get_spectrum(dt)` for sub-millisecond visual frame pacing.
-- **Platform Features**:
-  - Android: `READ_MEDIA_AUDIO` / `READ_EXTERNAL_STORAGE` support.
-  - iOS: Audio background playback mode & document opening capabilities.
+- **Hardware-Accelerated MP4 Exporter (`services/export_service.dart`)**:
+  - Deterministic frame-by-frame FFT spectrum extraction from Rust core.
+  - Generates H.264 video + stereo AAC audio MP4 files in **9:16 Portrait** and **16:9 Landscape**.
+- **In-App Auto-Updater (`services/update_service.dart`)**:
+  - Automatically queries GitHub Releases on startup.
+  - Downloads latest `.apk` and triggers native Android package installer.
+- **Lifecycle & Screen Lock Management**:
+  - Auto-pauses audio on minimize / backgrounding.
+  - Keeps screen awake (`wakelock_plus`) during offline video export.
