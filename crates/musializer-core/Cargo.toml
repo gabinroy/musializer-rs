@@ -13,6 +13,8 @@ crossbeam-channel = "0.5.16"
 rustfft = "6.4.1"
 symphonia = { version = "0.5.4", features = ["all"] }
 log = "0.4.34"
+lazy_static = "1.5.0"
+flutter_rust_bridge = "=2.13.0"
 
 [features]
 default = []

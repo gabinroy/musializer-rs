@@ -1,6 +1,8 @@
+pub mod api;
 pub mod audio;
 pub mod dsp;
 pub mod engine;
+mod frb_generated;
 
 pub use audio::decoder::AudioTrack;
 pub use audio::player::AudioPlayer;
