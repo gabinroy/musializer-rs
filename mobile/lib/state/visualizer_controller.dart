@@ -77,12 +77,12 @@ class VisualizerController extends ChangeNotifier {
 
   Future<void> pickAndLoadAudio() async {
     try {
-      final List<PlatformFile>? files = await FilePicker.pickFiles(
+      final files = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['mp3', 'wav', 'flac', 'ogg', 'aac', 'm4a'],
       );
 
-      if (files != null && files.isNotEmpty) {
+      if (files.isNotEmpty) {
         final path = files.first.path;
         if (path != null) {
           final track = await rust_api.loadAudioFile(path: path);
