@@ -142,6 +142,9 @@ pub fn get_spectrum(dt: f32) -> Vec<f32> {
 
 // Android JNI initializer for ndk-context / CPAL / AAudio
 #[cfg(target_os = "android")]
+static CONTEXT_INIT_ONCE: std::sync::Once = std::sync::Once::new();
+
+#[cfg(target_os = "android")]
 #[allow(non_snake_case)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn Java_com_musializer_mobile_MainActivity_initAndroidContext(
@@ -149,31 +152,18 @@ pub unsafe extern "C" fn Java_com_musializer_mobile_MainActivity_initAndroidCont
     _class: jni::sys::jclass,
     context: jni::sys::jobject,
 ) {
-    let mut vm: *mut jni::sys::JavaVM = std::ptr::null_mut();
-    if unsafe { ((**env).v1_1.GetJavaVM)(env, &mut vm) } == 0 && !vm.is_null() {
-        let global_context = unsafe { ((**env).v1_1.NewGlobalRef)(env, context) };
-        unsafe {
-            ndk_context::initialize_android_context(
-                vm as *mut std::ffi::c_void,
-                global_context as *mut std::ffi::c_void,
-            );
+    CONTEXT_INIT_ONCE.call_once(|| {
+        let mut vm: *mut jni::sys::JavaVM = std::ptr::null_mut();
+        if unsafe { ((**env).v1_1.GetJavaVM)(env, &mut vm) } == 0 && !vm.is_null() {
+            let global_context = unsafe { ((**env).v1_1.NewGlobalRef)(env, context) };
+            if !global_context.is_null() {
+                unsafe {
+                    ndk_context::initialize_android_context(
+                        vm as *mut std::ffi::c_void,
+                        global_context as *mut std::ffi::c_void,
+                    );
+                }
+            }
         }
-    }
-}
-
-#[cfg(target_os = "android")]
-#[allow(non_snake_case)]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn JNI_OnLoad(
-    vm: *mut jni::sys::JavaVM,
-    _reserved: *mut std::ffi::c_void,
-) -> jni::sys::jint {
-    let context_null: jni::sys::jobject = std::ptr::null_mut();
-    unsafe {
-        ndk_context::initialize_android_context(
-            vm as *mut std::ffi::c_void,
-            context_null as *mut std::ffi::c_void,
-        );
-    }
-    jni::sys::JNI_VERSION_1_6
+    });
 }
