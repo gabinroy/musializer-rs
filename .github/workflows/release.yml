@@ -23,8 +23,11 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build (${{ matrix.platform.name }})
+  # -------------------------------------------------------------------------
+  # 1. Desktop Multi-Platform Matrix (Linux, Windows, macOS)
+  # -------------------------------------------------------------------------
+  build-desktop:
+    name: Build Desktop (${{ matrix.platform.name }})
     runs-on: ${{ matrix.platform.os }}
     strategy:
       fail-fast: false
@@ -94,7 +97,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          # Copy .deb from bundle if present, or generate with cargo-deb
           cargo deb --target ${{ matrix.platform.target }} --no-build -o dist/ || true
           cargo generate-rpm --target ${{ matrix.platform.target }} -o dist/ || true
           find target/${{ matrix.platform.target }}/release/bundle/ -name "*.AppImage" -exec cp {} dist/ \; || true
@@ -117,10 +119,7 @@ jobs:
           mkdir -p dist
           if [ -d "target/${{ matrix.platform.target }}/release/bundle/osx" ]; then
             cd target/${{ matrix.platform.target }}/release/bundle/osx
-            # 1. Zip the .app bundle
             zip -r ../../../../../dist/musializer-rs-${{ matrix.platform.target }}.app.zip *.app || true
-            
-            # 2. Create .dmg disk image installer
             APP_NAME=$(find . -maxdepth 1 -name "*.app" | head -n 1)
             if [ -n "$APP_NAME" ]; then
               npm install --global create-dmg || true
@@ -138,9 +137,120 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # -------------------------------------------------------------------------
+  # 2. Mobile Android Build (Universal & Split APKs)
+  # -------------------------------------------------------------------------
+  build-android:
+    name: Build Mobile (Android APK)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+          add-to-path: true
+
+      - name: Install Rust toolchains for Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Compile Native Rust Libraries for Android
+        run: |
+          cd crates/musializer-core
+          ./build-android.sh
+
+      - name: Build Android Release APK
+        run: |
+          cd mobile
+          flutter pub get
+          flutter build apk --release --split-per-abi
+
+      - name: Package Android APKs
+        run: |
+          mkdir -p dist
+          cp mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/musializer-mobile-arm64-v8a.apk || true
+          cp mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/musializer-mobile-armeabi-v7a.apk || true
+          cp mobile/build/app/outputs/flutter-apk/app-x86_64-release.apk dist/musializer-mobile-x86_64.apk || true
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-android-mobile
+          path: dist/*
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # 3. Mobile iOS Build (Runner.app / .ipa bundle validation)
+  # -------------------------------------------------------------------------
+  build-ios:
+    name: Build Mobile (iOS No-Codesign Archive)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Rust targets for iOS
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios
+
+      - name: Compile Native Rust for iOS
+        run: |
+          cd crates/musializer-core
+          ./build-ios.sh
+
+      - name: Build Flutter iOS Release (No Codesign)
+        run: |
+          cd mobile
+          flutter pub get
+          flutter build ios --release --no-codesign
+
+      - name: Package iOS Runner
+        run: |
+          mkdir -p dist
+          cd mobile/build/ios/iphoneos
+          zip -r ../../../../dist/musializer-mobile-ios-unsigned.zip Runner.app || true
+
+      - name: Upload iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-ios-mobile
+          path: dist/*
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  # 4. Unified Release Publisher
+  # -------------------------------------------------------------------------
   publish:
     name: Publish GitHub Release
-    needs: [build]
+    needs: [build-desktop, build-android, build-ios]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -179,53 +289,3 @@ jobs:
           body: ${{ steps.release_info.outputs.notes }}
           generate_release_notes: true
           files: all-dist/*
-
-  aur-publish:
-    name: Publish to Arch User Repository (AUR)
-    needs: [publish]
-    runs-on: ubuntu-latest
-    # Temporarily paused until AUR new account registration reopens
-    if: false
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Extract Release Tag
-        id: vars
-        run: echo "tag=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Update PKGBUILD version
-        run: |
-          sed -i "s/pkgver=.*/pkgver=${{ steps.vars.outputs.tag }}/" distribution/aur/PKGBUILD
-          sed -i "s/pkgrel=.*/pkgrel=1/" distribution/aur/PKGBUILD
-
-      - name: Deploy to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
-        if: env.AUR_KEY != ''
-        env:
-          AUR_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-        with:
-          pkgname: musializer-rs-bin
-          pkgbuild: distribution/aur/PKGBUILD
-          commit_username: 'gabinroy'
-          commit_email: 'gabinroy@users.noreply.github.com'
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to v${{ steps.vars.outputs.tag }}"
-
-  winget-publish:
-    name: Publish to Windows Winget
-    needs: [publish]
-    runs-on: ubuntu-latest
-    # Optional: Disabled in favor of direct installer downloads (.msi, .zip/.exe)
-    if: false
-    steps:
-      - name: Submit Winget Package Update
-        uses: vedantmgoyal9/winget-releaser@v2
-        if: env.WINGET_TOKEN != ''
-        env:
-          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
-        with:
-          identifier: GabinRoy.MusializerRS
-          version: ${{ github.ref_name }}
-          installers-regex: '.*-x86_64-pc-windows-msvc\.zip$'
-          token: ${{ secrets.WINGET_TOKEN }}
