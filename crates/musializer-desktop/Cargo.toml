@@ -11,12 +11,12 @@ repository = "https://github.com/gabinroy/musializer-rs"
 name = "musializer-rs"
 path = "src/main.rs"
 
-[package.metadata.rpm]
-package = "musializer-rs"
-
-[package.metadata.rpm.files]
-"../../assets/icon.png" = { path = "/usr/share/icons/hicolor/256x256/apps/musializer-rs.png" }
-"../../distribution/org.musializer.MusializerRS.desktop" = { path = "/usr/share/applications/musializer-rs.desktop" }
+[package.metadata.generate-rpm]
+assets = [
+    { source = "../../target/release/musializer-rs", dest = "/usr/bin/musializer-rs", mode = "755" },
+    { source = "../../assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/musializer-rs.png", mode = "644" },
+    { source = "../../distribution/org.musializer.MusializerRS.desktop", dest = "/usr/share/applications/musializer-rs.desktop", mode = "644" },
+]
 
 [package.metadata.deb]
 name = "musializer-rs"

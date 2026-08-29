@@ -68,7 +68,7 @@ jobs:
       # Build binaries and packages
       - name: Install cargo packaging tools
         run: |
-          cargo install cargo-bundle cargo-deb cargo-generate-rpm || true
+          cargo install cargo-deb cargo-generate-rpm || true
 
       - name: Build Desktop Release
         run: |
@@ -80,7 +80,10 @@ jobs:
         run: |
           mkdir -p dist
           cargo deb --target ${{ matrix.platform.target }} -p musializer-desktop -o dist/musializer-rs-amd64.deb || true
-          cargo generate-rpm --target ${{ matrix.platform.target }} --manifest-path crates/musializer-desktop/Cargo.toml -o dist/musializer-rs.x86_64.rpm || true
+          
+          # Generate RPM package from workspace release binary
+          (cd crates/musializer-desktop && cargo generate-rpm --target-dir ../../target --target ${{ matrix.platform.target }} --auto-req disabled -o ../../dist/musializer-rs.x86_64.rpm) || true
+          
           tar -czf dist/musializer-rs-linux-x86_64.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
       # Windows Packages (.exe, .zip)
@@ -98,15 +101,49 @@ jobs:
         if: matrix.platform.artifact_type == 'macos'
         run: |
           mkdir -p dist
-          cargo bundle --release --target ${{ matrix.platform.target }} --pkgid musializer-desktop --format osx,dmg || true
           
-          # Find generated DMG or package .app into DMG / Zip
-          if [ -d "target/${{ matrix.platform.target }}/release/bundle/osx/Musializer-RS.app" ]; then
-            hdiutil create -volname "Musializer-RS" -srcfolder "target/${{ matrix.platform.target }}/release/bundle/osx/Musializer-RS.app" -ov -format UDZO dist/musializer-rs-macos-arm64.dmg || true
-            cd target/${{ matrix.platform.target }}/release/bundle/osx
-            zip -r ../../../../../dist/musializer-rs-macos-arm64.app.zip Musializer-RS.app || true
-            cd -
-          fi
+          # Create macOS App Bundle manually & via hdiutil DMG
+          APP_DIR="dist/Musializer-RS.app/Contents"
+          mkdir -p "$APP_DIR/MacOS"
+          mkdir -p "$APP_DIR/Resources"
+          
+          # Copy binary & icon
+          cp target/${{ matrix.platform.target }}/release/musializer-rs "$APP_DIR/MacOS/musializer-rs"
+          chmod +x "$APP_DIR/MacOS/musializer-rs"
+          cp assets/icon.png "$APP_DIR/Resources/icon.png"
+          
+          # Create Info.plist
+          cat << 'EOF_PLIST' > "$APP_DIR/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>musializer-rs</string>
+              <key>CFBundleIdentifier</key>
+              <string>org.musializer.MusializerRS</string>
+              <key>CFBundleName</key>
+              <string>Musializer-RS</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0.0</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>11.0</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF_PLIST
+          
+          # Package .dmg disk image using hdiutil
+          hdiutil create -volname "Musializer-RS" -srcfolder "dist/Musializer-RS.app" -ov -format UDZO dist/musializer-rs-macos-arm64.dmg
+          
+          # Package .app.zip
+          cd dist
+          zip -r musializer-rs-macos-arm64.app.zip Musializer-RS.app
+          rm -rf Musializer-RS.app
+          cd ..
           
           tar -czf dist/musializer-rs-macos-arm64.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
@@ -220,6 +257,7 @@ jobs:
           mkdir -p Payload
           cp -r mobile/build/ios/iphoneos/Runner.app Payload/
           zip -r dist/musializer-mobile-ios-unsigned.ipa Payload
+          rm -rf Payload
           
           # Zip Runner.app directly
           cd mobile/build/ios/iphoneos
