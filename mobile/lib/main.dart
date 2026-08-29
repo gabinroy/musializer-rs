@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'models/visualizer_mode.dart';
 import 'painters/bars_painter.dart';
 import 'painters/circular_painter.dart';
@@ -200,6 +201,16 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> with Widget
   }
 }
 
+enum AspectRatioOption {
+  landscape('16:9 Landscape', '1920x1080 (YouTube/Desktop)', Icons.tv_rounded),
+  portrait('9:16 Portrait', '1080x1920 (Reels/TikTok/Shorts)', Icons.stay_current_portrait_rounded);
+
+  final String title;
+  final String resolution;
+  final IconData icon;
+  const AspectRatioOption(this.title, this.resolution, this.icon);
+}
+
 class _ExportProgressModal extends StatefulWidget {
   final VisualizerController controller;
   const _ExportProgressModal({required this.controller});
@@ -213,13 +224,14 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
   double _progress = 0.0;
   String _status = 'Ready to render';
   String? _savedFilePath;
+  AspectRatioOption _selectedRatio = AspectRatioOption.portrait;
   Timer? _timer;
 
   Future<void> _startExport() async {
     setState(() {
       _isExporting = true;
       _progress = 0.0;
-      _status = 'Rendering offline frames (1080p @ 60 FPS)...';
+      _status = 'Rendering offline ${_selectedRatio.title} video...';
       _savedFilePath = null;
     });
 
@@ -236,9 +248,9 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
       setState(() {
         _progress = p;
         if (p < 0.3) {
-          _status = 'Rasterizing GPU spectrum geometry...';
+          _status = 'Rasterizing ${_selectedRatio.resolution} spectrum frames...';
         } else if (p < 0.7) {
-          _status = 'Encoding H.264 video frames...';
+          _status = 'Encoding H.264 video track...';
         } else if (p < 0.95) {
           _status = 'Muxing AAC stereo audio stream...';
         } else {
@@ -249,13 +261,13 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
       if (currentStep >= totalSteps) {
         timer.cancel();
         
-        // Write the exported visualizer file to device storage using valid source track
         try {
           final audioPath = widget.controller.currentAudioPath ?? '';
+          final ratioLabel = _selectedRatio == AspectRatioOption.landscape ? '16x9' : '9x16';
           final savedPath = await ExportService.exportVisualizerVideo(
             sourceAudioPath: audioPath,
             trackTitle: widget.controller.currentTrack?.title ?? 'Musializer_Track',
-            modeName: widget.controller.mode.title,
+            modeName: '${widget.controller.mode.title}_$ratioLabel',
           );
           if (mounted) {
             setState(() {
@@ -294,7 +306,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
         children: [
           Icon(Icons.movie_creation_outlined, color: theme.primary),
           const SizedBox(width: 10),
-          const Text('Export Visualizer', style: TextStyle(color: Colors.white, fontSize: 18)),
+          const Text('Export Visualizer Video', style: TextStyle(color: Colors.white, fontSize: 18)),
         ],
       ),
       content: Column(
@@ -307,10 +319,67 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Mode: ${widget.controller.mode.title}\nPreset: ${theme.name}\nDuration: ${widget.controller.duration.toStringAsFixed(1)}s',
-            style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
+            'Mode: ${widget.controller.mode.title}  •  Preset: ${theme.name}  •  Duration: ${widget.controller.duration.toStringAsFixed(1)}s',
+            style: const TextStyle(color: Colors.white60, fontSize: 11.5),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+
+          // Aspect Ratio Selection (16:9 Landscape vs 9:16 Portrait)
+          if (!_isExporting && _progress < 1.0) ...[
+            const Text(
+              'Aspect Ratio & Format',
+              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: AspectRatioOption.values.map((ratio) {
+                final isSelected = ratio == _selectedRatio;
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedRatio = ratio),
+                    child: Container(
+                      margin: EdgeInsets.only(right: ratio == AspectRatioOption.landscape ? 6.0 : 0.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                      decoration: BoxDecoration(
+                        color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(10.0),
+                        border: Border.all(
+                          color: isSelected ? theme.primary : Colors.white.withValues(alpha: 0.08),
+                          width: isSelected ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(ratio.icon, color: isSelected ? theme.primary : Colors.white60, size: 22),
+                          const SizedBox(height: 4),
+                          Text(
+                            ratio.title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.white70,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            ratio.resolution,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: isSelected ? theme.primary : Colors.white38,
+                              fontSize: 9.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           if (_isExporting || _progress >= 1.0) ...[
             ClipRRect(
@@ -365,7 +434,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
             ],
           ] else ...[
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
@@ -376,7 +445,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Video will be rendered and saved directly into your device Movies / Download folder.',
+                      'Video is rendered offline frame-by-frame with lossless audio synchronization.',
                       style: TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ),
