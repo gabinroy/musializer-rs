@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import '../models/circle_center_display.dart';
 import '../models/visualizer_mode.dart';
 import '../models/visualizer_theme.dart';
 import '../src/rust/api.dart' as rust_api;
@@ -19,6 +22,12 @@ class VisualizerController extends ChangeNotifier {
 
   VisualizerTheme _theme = VisualizerTheme.presets.first;
   VisualizerTheme get theme => _theme;
+
+  CircleCenterDisplay _circleCenterDisplay = CircleCenterDisplay.timeElapsed;
+  CircleCenterDisplay get circleCenterDisplay => _circleCenterDisplay;
+
+  ui.Image? _coverImage;
+  ui.Image? get coverImage => _coverImage;
 
   rust_api.MobileTrackInfo? _currentTrack;
   rust_api.MobileTrackInfo? get currentTrack => _currentTrack;
@@ -73,6 +82,33 @@ class VisualizerController extends ChangeNotifier {
   void setTheme(VisualizerTheme newTheme) {
     _theme = newTheme;
     notifyListeners();
+  }
+
+  void setCircleCenterDisplay(CircleCenterDisplay display) {
+    _circleCenterDisplay = display;
+    notifyListeners();
+  }
+
+  Future<void> pickCoverImage() async {
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.image,
+      );
+
+      if (files.isNotEmpty) {
+        final path = files.first.path;
+        if (path != null) {
+          final bytes = await File(path).readAsBytes();
+          final codec = await ui.instantiateImageCodec(bytes);
+          final frame = await codec.getNextFrame();
+          _coverImage = frame.image;
+          _circleCenterDisplay = CircleCenterDisplay.customCover;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking cover image: $e');
+    }
   }
 
   Future<void> pickAndLoadAudio() async {

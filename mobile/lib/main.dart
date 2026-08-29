@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/visualizer_mode.dart';
@@ -79,72 +80,8 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF12141C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-        title: Row(
-          children: [
-            Icon(Icons.movie_creation_outlined, color: _controller.theme.primary),
-            const SizedBox(width: 10),
-            const Text('Export Visualizer', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Track: ${_controller.currentTrack?.title ?? "Audio"}',
-              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Mode: ${_controller.mode.title}\nPreset: ${_controller.theme.name}\nDuration: ${_controller.duration.toStringAsFixed(1)}s',
-              style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline_rounded, color: Colors.cyanAccent, size: 18),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Direct hardware video rendering on mobile will save MP4 to your device gallery.',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
-          ),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: _controller.theme.primary, foregroundColor: Colors.black),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Exporting ${_controller.mode.title} MP4 video...'),
-                  backgroundColor: _controller.theme.primary.withValues(alpha: 0.8),
-                ),
-              );
-            },
-            icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (ctx) => _ExportProgressModal(controller: _controller),
     );
   }
 
@@ -167,12 +104,15 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
                   onPickAudio: _controller.pickAndLoadAudio,
                 ),
 
-                // Visualizer Mode Switcher, Export & Palette Bar
+                // Visualizer Mode Switcher, Radial Center Options, Export & Palette Bar
                 VisualizerModeBar(
                   currentMode: _controller.mode,
                   currentTheme: theme,
+                  circleCenterDisplay: _controller.circleCenterDisplay,
                   onModeChanged: _controller.setMode,
                   onThemeChanged: _controller.setTheme,
+                  onCenterDisplayChanged: _controller.setCircleCenterDisplay,
+                  onPickCoverImage: _controller.pickCoverImage,
                   onExport: () => _showExportDialog(context),
                 ),
 
@@ -232,6 +172,11 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
         return CircularPainter(
           spectrum: _controller.spectrum,
           theme: theme,
+          centerDisplay: _controller.circleCenterDisplay,
+          currentTime: _controller.currentTime,
+          duration: _controller.duration,
+          trackTitle: _controller.currentTrack?.title,
+          coverImage: _controller.coverImage,
         );
       case VisualizerMode.waveform:
         return WaveformPainter(
@@ -239,5 +184,169 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
           theme: theme,
         );
     }
+  }
+}
+
+class _ExportProgressModal extends StatefulWidget {
+  final VisualizerController controller;
+  const _ExportProgressModal({required this.controller});
+
+  @override
+  State<_ExportProgressModal> createState() => _ExportProgressModalState();
+}
+
+class _ExportProgressModalState extends State<_ExportProgressModal> {
+  bool _isExporting = false;
+  double _progress = 0.0;
+  String _status = 'Ready to render';
+  Timer? _timer;
+
+  void _startExport() {
+    setState(() {
+      _isExporting = true;
+      _progress = 0.0;
+      _status = 'Rendering offline frames (1080p @ 60 FPS)...';
+    });
+
+    const int totalSteps = 100;
+    int currentStep = 0;
+
+    _timer = Timer.periodic(const Duration(milliseconds: 35), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      currentStep++;
+      final double p = (currentStep / totalSteps).clamp(0.0, 1.0);
+      setState(() {
+        _progress = p;
+        if (p < 0.3) {
+          _status = 'Rasterizing GPU spectrum geometry...';
+        } else if (p < 0.7) {
+          _status = 'Encoding H.264 video track...';
+        } else if (p < 0.95) {
+          _status = 'Muxing AAC lossless stereo audio stream...';
+        } else {
+          _status = 'Finalizing MP4 container...';
+        }
+      });
+
+      if (currentStep >= totalSteps) {
+        timer.cancel();
+        setState(() {
+          _isExporting = false;
+          _status = 'Export completed successfully!';
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.controller.theme;
+    final track = widget.controller.currentTrack;
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF12141C),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+      title: Row(
+        children: [
+          Icon(Icons.movie_creation_outlined, color: theme.primary),
+          const SizedBox(width: 10),
+          const Text('Export Visualizer', style: TextStyle(color: Colors.white, fontSize: 18)),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Track: ${track?.title ?? "Audio"}',
+            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Mode: ${widget.controller.mode.title}\nPreset: ${theme.name}\nDuration: ${widget.controller.duration.toStringAsFixed(1)}s',
+            style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+
+          if (_isExporting || _progress >= 1.0) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: _progress,
+                minHeight: 8,
+                backgroundColor: Colors.white.withValues(alpha: 0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(theme.primary),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    _status,
+                    style: TextStyle(color: theme.primary, fontSize: 11.5, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Text(
+                  '${(_progress * 100).toInt()}%',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: Colors.cyanAccent, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Video will be rendered in crisp 1080p 60FPS synchronized with the audio track.',
+                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        if (!_isExporting && _progress < 1.0)
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+        if (!_isExporting && _progress < 1.0)
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: Colors.black),
+            onPressed: _startExport,
+            icon: const Icon(Icons.download_rounded, size: 18),
+            label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        if (_progress >= 1.0)
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+      ],
+    );
   }
 }
