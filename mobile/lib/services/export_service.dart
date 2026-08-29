@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:math' as math;
-
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -52,8 +51,8 @@ class ExportService {
     required String trackTitle,
     required VisualizerMode mode,
     required VisualizerTheme theme,
-    required Float32List baseSpectrum,
-    required List<double> peaks,
+    required int numBands,
+    required double gainMultiplier,
     required CircleCenterDisplay centerDisplay,
     required double duration,
     required ui.Image? coverImage,
@@ -76,6 +75,8 @@ class ExportService {
       const int sampleRate = 44100;
       const int channels = 2;
 
+      onProgress(0.02, 'Extracting lossless audio & calculating FFT spectrum...');
+
       // Extract real audio PCM bytes from Rust core
       Uint8List? rawPcm;
       try {
@@ -83,6 +84,20 @@ class ExportService {
         rawPcm = Uint8List.fromList(pcmList);
       } catch (e) {
         debugPrint('Could not extract PCM audio from Rust: $e');
+      }
+
+      // Compute exact deterministic FFT spectrum for all video frames from Rust DSP engine
+      Float32List allSpectrumFrames;
+      try {
+        final flatList = await rust_api.getOfflineSpectrumFrames(
+          fps: fps,
+          numBands: BigInt.from(numBands),
+          gainMultiplier: gainMultiplier,
+        );
+        allSpectrumFrames = Float32List.fromList(flatList);
+      } catch (e) {
+        debugPrint('Could not compute offline spectrum from Rust: $e');
+        allSpectrumFrames = Float32List(0);
       }
 
       final exportDir = await getExportDirectory();
@@ -107,7 +122,6 @@ class ExportService {
 
       final double effectiveDuration = duration > 0 ? duration.clamp(3.0, 300.0) : 10.0;
       final int totalFrames = (effectiveDuration * fps).toInt();
-      final int numBands = baseSpectrum.length;
 
       // Bytes per video frame for audio interleaving: (44100 * 2 channels * 2 bytes/sample) / 30 fps = 5880 bytes/frame
       const int bytesPerFrame = (sampleRate * channels * 2) ~/ fps;
@@ -115,7 +129,10 @@ class ExportService {
       final size = Size(width.toDouble(), height.toDouble());
       final bgPaint = Paint()..color = theme.background;
 
-      // 3. Render and encode each frame
+      List<double> peaks = List.filled(numBands, 0.0);
+      const double dt = 1.0 / fps;
+
+      // 3. Render and encode each frame with exact audio DSP spectrum
       for (int frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
         final double progress = frameIdx / totalFrames;
         final double currentTime = progress * effectiveDuration;
@@ -124,13 +141,22 @@ class ExportService {
           onProgress(progress, 'Encoding frame $frameIdx / $totalFrames...');
         }
 
-        // Generate dynamic rhythmic animation for each frame
-        final Float32List animatedSpectrum = Float32List(numBands);
+        // Get exact FFT frequency spectrum slice computed by Rust for this precise frame
+        final Float32List frameSpectrum = Float32List(numBands);
+        final int frameOffset = frameIdx * numBands;
+        if (frameOffset + numBands <= allSpectrumFrames.length) {
+          for (int i = 0; i < numBands; i++) {
+            frameSpectrum[i] = allSpectrumFrames[frameOffset + i];
+          }
+        }
+
+        // Compute smooth peak hold decay
         for (int i = 0; i < numBands; i++) {
-          final double baseVal = baseSpectrum[i];
-          final double wave1 = math.sin((frameIdx * 0.15) + (i * 0.2)).abs();
-          final double wave2 = math.cos((frameIdx * 0.25) - (i * 0.1)).abs();
-          animatedSpectrum[i] = ((baseVal * 0.6) + (wave1 * 0.3) + (wave2 * 0.1)).clamp(0.05, 1.0);
+          if (frameSpectrum[i] > peaks[i]) {
+            peaks[i] = frameSpectrum[i];
+          } else {
+            peaks[i] = math.max(0.0, peaks[i] - 0.4 * dt);
+          }
         }
 
         final recorder = ui.PictureRecorder();
@@ -141,14 +167,14 @@ class ExportService {
         switch (mode) {
           case VisualizerMode.spectrumBars:
             BarsPainter(
-              spectrum: animatedSpectrum,
+              spectrum: frameSpectrum,
               peaks: peaks,
               theme: theme,
             ).paint(canvas, size);
             break;
           case VisualizerMode.circular:
             CircularPainter(
-              spectrum: animatedSpectrum,
+              spectrum: frameSpectrum,
               theme: theme,
               centerDisplay: centerDisplay,
               currentTime: currentTime,
@@ -159,7 +185,7 @@ class ExportService {
             break;
           case VisualizerMode.waveform:
             WaveformPainter(
-              spectrum: animatedSpectrum,
+              spectrum: frameSpectrum,
               theme: theme,
             ).paint(canvas, size);
             break;
@@ -188,7 +214,7 @@ class ExportService {
 
       // 4. Finalize and close the MP4 video container
       await FlutterQuickVideoEncoder.finish();
-      debugPrint('Native MP4 Video with audio successfully generated at: $targetPath');
+      debugPrint('Native MP4 Video with audio and true FFT spectrum successfully generated at: $targetPath');
       return targetPath;
     } finally {
       // Re-enable screen lock / sleep mode

@@ -239,8 +239,8 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
         trackTitle: widget.controller.currentTrack?.title ?? 'Musializer_Track',
         mode: widget.controller.mode,
         theme: widget.controller.theme,
-        baseSpectrum: widget.controller.spectrum,
-        peaks: widget.controller.peaks,
+        numBands: VisualizerController.defaultNumBands,
+        gainMultiplier: widget.controller.gainMultiplier,
         centerDisplay: widget.controller.circleCenterDisplay,
         duration: widget.controller.duration,
         coverImage: widget.controller.coverImage ?? widget.controller.defaultLogoImage,
@@ -430,7 +430,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
                     child: Row(
                       children: [
                         const Icon(Icons.folder_open_rounded, color: Colors.greenAccent, size: 20),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _savedFilePath!,

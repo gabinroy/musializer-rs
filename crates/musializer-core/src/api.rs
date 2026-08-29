@@ -1,5 +1,9 @@
 use std::sync::Mutex;
 use lazy_static::lazy_static;
+use crate::audio::sync::AudioSync;
+use crate::dsp::ema::EmaSmoother;
+use crate::dsp::fft::FftProcessor;
+use crate::dsp::frequency::FrequencyBands;
 use crate::engine::AudioVisualizerEngine;
 
 lazy_static! {
@@ -138,6 +142,37 @@ pub fn get_spectrum(dt: f32) -> Vec<f32> {
         }
     }
     Vec::new()
+}
+
+/// Computes the exact deterministic FFT frequency spectrum for all video frames offline.
+/// Returns flattened Float32 list with total_frames * num_bands elements.
+pub fn get_offline_spectrum_frames(fps: u32, num_bands: usize, gain_multiplier: f32) -> Result<Vec<f32>, String> {
+    let lock = ENGINE.lock().map_err(|e| format!("Engine lock error: {:?}", e))?;
+    let engine = lock.as_ref().ok_or_else(|| "Engine not initialized".to_string())?;
+    let track = engine.get_track().ok_or_else(|| "No track loaded".to_string())?;
+
+    let fft_size = 2048;
+    let mut fft = FftProcessor::new(fft_size);
+    let bands_mapper = FrequencyBands::new(num_bands, fft_size, track.sample_rate);
+    let mut smoother = EmaSmoother::new(num_bands, 0.85, 0.15);
+    let dt = 1.0 / fps.max(1) as f32;
+
+    let samples_per_frame = (track.sample_rate as f32 / fps as f32).round() as usize;
+    let total_audio_frames = track.samples.len() / 2;
+    let total_video_frames = ((total_audio_frames as f32 / samples_per_frame as f32).ceil() as usize).max(1);
+
+    let mut result = Vec::with_capacity(total_video_frames * num_bands);
+
+    for frame_idx in 0..total_video_frames {
+        let audio_frame_pos = frame_idx * samples_per_frame;
+        let pcm_window = AudioSync::extract_pcm_window(&track.samples, audio_frame_pos, fft_size);
+        let magnitudes = fft.process(&pcm_window);
+        let raw_bands = bands_mapper.aggregate(&magnitudes, gain_multiplier.max(0.1));
+        smoother.update(&raw_bands, dt);
+        result.extend_from_slice(smoother.values());
+    }
+
+    Ok(result)
 }
 
 /// Extracts 16-bit signed PCM audio bytes for offline video export (stereo, 44100Hz)
