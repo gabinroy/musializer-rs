@@ -346,7 +346,7 @@ impl eframe::App for MusializerApp {
 
         // Bottom Controls Panel
         TopBottomPanel::bottom("bottom_controls_panel")
-            .min_height(90.0)
+            .min_height(95.0)
             .show(ctx, |ui| {
                 if let Ok(player) = &mut self.player {
                     TransportControls::show(
