@@ -41,6 +41,16 @@ graph TD
         FFmpegPipe --> MP4Output["Rendered Video File (.mp4)"]
         FFmpegAudio --> MP4Output
     end
+
+    subgraph AutoUpdater["5. In-App Auto Updater (Tokio Background Service)"]
+        StartupTimer["Startup Delay (5s) / Periodic (4h)"] --> GitHubAPI["GitHub Releases API (/releases/latest)"]
+        GitHubAPI --> SemverCheck["Semver Tag Comparison (vX.Y.Z vs CARGO_PKG_VERSION)"]
+        SemverCheck --> CrossbeamChannel["crossbeam-channel (IPC Event Stream)"]
+        CrossbeamChannel --> TitleBarBadge["Title Bar Update Notification Badge"]
+        TitleBarBadge --> UpdateModalUI["Interactive 'Update Available' Modal Dialog"]
+        UpdateModalUI --> SelfUpdate["self_update Atomic Binary Download & Replacement"]
+        SelfUpdate --> ProcessRestart["Spawn New Binary & Exit Old Process"]
+    end
 ```
 
 ---
@@ -156,3 +166,37 @@ Renders high-definition visualizer animations into standalone MP4 video files wi
   ffmpeg -y -f rawvideo -vcodec rawvideo -s 1920x1080 -pix_fmt rgba -r 60 -i - -i <input_audio> -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest <output.mp4>
   ```
 - Non-blocking background thread with progress reporting and cancellation support.
+
+---
+
+## 5. In-App Automated Update Subsystem
+
+The In-App Automated Updater provides zero-friction version discovery, changelog inspection, and one-click in-place binary upgrades.
+
+### 5.1 Asynchronous Background Service (`src/updater/service.rs`)
+- **Runtime**: Dedicated `tokio` multi-threaded worker runtime separate from the GUI thread.
+- **Poll Cadence**: Performs an initial check 5 seconds after application startup to avoid contention during cold boot, then checks periodically every 4 hours.
+- **GitHub Releases REST API**:
+  - Endpoint: `https://api.github.com/repos/gabinroy/musializer-rs/releases/latest`
+  - Uses `reqwest` with `rustls-tls` to avoid system OpenSSL dependencies.
+  - Compares the remote tag (`release.tag_name`) against the local compile-time version (`env!("CARGO_PKG_VERSION")`) via `semver::Version`.
+
+### 5.2 Thread-Safe Inter-Process Communication (`src/updater/types.rs`)
+- **Channel Layer**: Lock-free unbounded `crossbeam-channel` queues (`cmd_tx`/`cmd_rx` and `event_tx`/`event_rx`).
+- **Zero UI Stalls**: The UI thread drains incoming events with `try_recv()` at the start of each frame without blocking audio visualization rendering.
+
+### 5.3 UI Components (`src/ui/title_bar.rs`, `src/ui/update_modal.rs`)
+- **Title Bar Notification Badge**: When `UpdateStatus::UpdateAvailable` is active, displays an eye-catching cyan pill badge (`⚡ Update vX.Y.Z`).
+- **Interactive Modal Dialog**:
+  - Displays side-by-side Current vs. Latest version tags.
+  - Markdown-rendered changelog scroll area.
+  - "Remind Me Later" and "⚡ Update Now" action buttons.
+  - Real-time download progress bar and spinner.
+  - Graceful error display with retry options.
+
+### 5.4 Cross-Platform Binary Replacement & Process Restart
+- **Library**: `self_update` with target platform archive matching.
+- **Atomic Replacement**:
+  - **Linux / macOS**: Replaces the binary atomically using file system inode replacement / `rename` (safe even while the current process is running).
+  - **Windows**: Handles locked executable files by renaming the current executable to `.old` and writing the new binary in place.
+- **Auto-Restart**: Spawns a fresh child process via `std::process::Command::new(std::env::current_exe()?).spawn()` and cleanly terminates the old process with `std::process::exit(0)`.

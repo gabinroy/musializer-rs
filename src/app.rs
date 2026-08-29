@@ -54,6 +54,12 @@ pub struct MusializerApp {
     exported_video_path: Option<PathBuf>,
     export_thumbnail_texture: Option<TextureHandle>,
 
+    // Updater Subsystem
+    updater_cmd_tx: crossbeam_channel::Sender<crate::updater::UpdaterCommand>,
+    updater_event_rx: crossbeam_channel::Receiver<crate::updater::UpdaterEvent>,
+    update_status: crate::updater::UpdateStatus,
+    show_update_modal: bool,
+
     error_msg: Option<String>,
 }
 
@@ -73,6 +79,15 @@ impl MusializerApp {
         // Load default embedded logo texture for center cover art
         let (circle_center_texture, raw_cover_image) = load_default_logo(&cc.egui_ctx);
         let title_bar_logo = load_title_bar_logo(&cc.egui_ctx);
+
+        // Initialize In-App Automated Updater Subsystem
+        let (cmd_tx, cmd_rx) = crossbeam_channel::unbounded();
+        let (event_tx, event_rx) = crossbeam_channel::unbounded();
+        crate::updater::UpdaterBackend::spawn(
+            cmd_rx,
+            event_tx,
+            std::time::Duration::from_secs(4 * 3600),
+        );
 
         Self {
             player,
@@ -105,6 +120,11 @@ impl MusializerApp {
             show_export_success_modal: false,
             exported_video_path: None,
             export_thumbnail_texture: None,
+
+            updater_cmd_tx: cmd_tx,
+            updater_event_rx: event_rx,
+            update_status: crate::updater::UpdateStatus::Idle,
+            show_update_modal: false,
 
             error_msg: None,
         }
@@ -330,6 +350,18 @@ impl eframe::App for MusializerApp {
         // Continuous repaint for 60+ FPS fluid rendering
         ctx.request_repaint();
 
+        // Drain updater events non-blockingly
+        while let Ok(event) = self.updater_event_rx.try_recv() {
+            match event {
+                crate::updater::UpdaterEvent::StatusChanged(status) => {
+                    self.update_status = status;
+                }
+                crate::updater::UpdaterEvent::Error(err) => {
+                    self.error_msg = Some(err);
+                }
+            }
+        }
+
         let now = Instant::now();
         let dt = (now - self.last_frame_time).as_secs_f32().min(0.1);
         self.last_frame_time = now;
@@ -375,7 +407,13 @@ impl eframe::App for MusializerApp {
                 ui.set_height(TITLE_BAR_HEIGHT);
                 ui.vertical_centered_justified(|ui| {
                     ui.set_height(TITLE_BAR_HEIGHT);
-                    CustomTitleBar::show(ui, self.title_bar_logo.as_ref(), "Musializer-RS");
+                    CustomTitleBar::show(
+                        ui,
+                        self.title_bar_logo.as_ref(),
+                        "Musializer-RS",
+                        &self.update_status,
+                        &mut self.show_update_modal,
+                    );
                 });
             });
 
@@ -816,5 +854,13 @@ impl eframe::App for MusializerApp {
 
             self.show_export_success_modal = is_open && !close_modal;
         }
+
+        // In-App Update Modal
+        crate::ui::UpdateModal::show(
+            ctx,
+            &mut self.show_update_modal,
+            &self.update_status,
+            &self.updater_cmd_tx,
+        );
     }
 }

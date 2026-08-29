@@ -31,6 +31,11 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
 - 🎬 **Deterministic 60 FPS Video Export**:
   - Offline frame stepping with zero dropped frames.
   - Automatic FFmpeg piping for direct `.mp4` video generation with muxed audio.
+- 🚀 **In-App Automated Update System**:
+  - Asynchronous background version checker via Tokio and GitHub Releases API.
+  - Non-blocking notification pill badge on the custom title bar.
+  - Interactive "Update Available" modal with markdown changelog preview.
+  - 1-Click cross-platform atomic binary replacement and app restart mechanism.
 
 ---
 

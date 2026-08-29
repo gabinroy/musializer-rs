@@ -21,6 +21,8 @@ impl CustomTitleBar {
         ui: &mut Ui,
         logo_texture: Option<&TextureHandle>,
         title: &str,
+        update_status: &crate::updater::UpdateStatus,
+        show_update_modal: &mut bool,
     ) -> egui::Response {
         let height = TITLE_BAR_HEIGHT;
         let full_width = ui.available_width();
@@ -54,6 +56,56 @@ impl CustomTitleBar {
                         .strong()
                         .color(Color32::from_rgb(220, 228, 240)),
                 );
+
+                // Notification badge when update is available or downloading
+                match update_status {
+                    crate::updater::UpdateStatus::UpdateAvailable(info) => {
+                        ui.add_space(4.0);
+                        let badge = egui::Button::new(
+                            RichText::new(format!("⚡ Update {}", info.version))
+                                .size(10.5)
+                                .strong()
+                                .color(Color32::from_rgb(15, 23, 42)),
+                        )
+                        .fill(Color32::from_rgb(56, 189, 248))
+                        .rounding(Rounding::same(10.0));
+
+                        if ui
+                            .add(badge)
+                            .on_hover_text("A new version of Musializer-RS is available! Click to update.")
+                            .clicked()
+                        {
+                            *show_update_modal = true;
+                        }
+                    }
+                    crate::updater::UpdateStatus::Downloading { progress, .. } => {
+                        ui.add_space(4.0);
+                        ui.horizontal(|ui| {
+                            ui.add(egui::Spinner::new().size(12.0));
+                            ui.add(
+                                egui::ProgressBar::new(*progress)
+                                    .desired_width(60.0)
+                                    .text("Updating..."),
+                            );
+                        });
+                    }
+                    crate::updater::UpdateStatus::ReadyToRestart => {
+                        ui.add_space(4.0);
+                        let restart_badge = egui::Button::new(
+                            RichText::new("🔄 Restart App")
+                                .size(10.5)
+                                .strong()
+                                .color(Color32::from_rgb(15, 23, 42)),
+                        )
+                        .fill(Color32::from_rgb(74, 222, 128))
+                        .rounding(Rounding::same(10.0));
+
+                        if ui.add(restart_badge).clicked() {
+                            *show_update_modal = true;
+                        }
+                    }
+                    _ => {}
+                }
             });
 
             // Flexible spacer: gap between the left group and the right controls.
