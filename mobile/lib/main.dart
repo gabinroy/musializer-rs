@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'models/visualizer_mode.dart';
 import 'painters/bars_painter.dart';
 import 'painters/circular_painter.dart';
@@ -202,8 +201,8 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> with Widget
 }
 
 enum AspectRatioOption {
-  landscape('16:9 Landscape', '1920x1080 (YouTube/Desktop)', Icons.tv_rounded),
-  portrait('9:16 Portrait', '1080x1920 (Reels/TikTok/Shorts)', Icons.stay_current_portrait_rounded);
+  portrait('9:16 Portrait', '1080x1920 (Reels/TikTok/Shorts)', Icons.stay_current_portrait_rounded),
+  landscape('16:9 Landscape', '1920x1080 (YouTube/Desktop)', Icons.tv_rounded);
 
   final String title;
   final String resolution;
@@ -231,14 +230,14 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
     setState(() {
       _isExporting = true;
       _progress = 0.0;
-      _status = 'Rendering offline ${_selectedRatio.title} video...';
+      _status = 'Rasterizing ${_selectedRatio.resolution} spectrum frame...';
       _savedFilePath = null;
     });
 
     const int totalSteps = 100;
     int currentStep = 0;
 
-    _timer = Timer.periodic(const Duration(milliseconds: 30), (timer) async {
+    _timer = Timer.periodic(const Duration(milliseconds: 25), (timer) async {
       if (!mounted) {
         timer.cancel();
         return;
@@ -247,14 +246,12 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
       final double p = (currentStep / totalSteps).clamp(0.0, 1.0);
       setState(() {
         _progress = p;
-        if (p < 0.3) {
-          _status = 'Rasterizing ${_selectedRatio.resolution} spectrum frames...';
-        } else if (p < 0.7) {
-          _status = 'Encoding H.264 video track...';
-        } else if (p < 0.95) {
-          _status = 'Muxing AAC stereo audio stream...';
+        if (p < 0.4) {
+          _status = 'Rasterizing ${_selectedRatio.resolution} GPU spectrum geometry...';
+        } else if (p < 0.8) {
+          _status = 'Rendering high-definition visualizer graphics...';
         } else {
-          _status = 'Writing MP4 file to device storage...';
+          _status = 'Writing lossless visualizer export to gallery...';
         }
       });
 
@@ -262,12 +259,18 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
         timer.cancel();
         
         try {
-          final audioPath = widget.controller.currentAudioPath ?? '';
-          final ratioLabel = _selectedRatio == AspectRatioOption.landscape ? '16x9' : '9x16';
-          final savedPath = await ExportService.exportVisualizerVideo(
-            sourceAudioPath: audioPath,
+          final isLandscape = _selectedRatio == AspectRatioOption.landscape;
+          final savedPath = await ExportService.exportVisualizerImageFrame(
             trackTitle: widget.controller.currentTrack?.title ?? 'Musializer_Track',
-            modeName: '${widget.controller.mode.title}_$ratioLabel',
+            mode: widget.controller.mode,
+            theme: widget.controller.theme,
+            spectrum: widget.controller.spectrum,
+            peaks: widget.controller.peaks,
+            centerDisplay: widget.controller.circleCenterDisplay,
+            currentTime: widget.controller.currentTime,
+            duration: widget.controller.duration,
+            coverImage: widget.controller.coverImage ?? widget.controller.defaultLogoImage,
+            isLandscape: isLandscape,
           );
           if (mounted) {
             setState(() {
@@ -280,7 +283,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
           if (mounted) {
             setState(() {
               _isExporting = false;
-              _status = 'Export complete (Notice: $e)';
+              _status = 'Export error: $e';
             });
           }
         }
@@ -306,7 +309,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
         children: [
           Icon(Icons.movie_creation_outlined, color: theme.primary),
           const SizedBox(width: 10),
-          const Text('Export Visualizer Video', style: TextStyle(color: Colors.white, fontSize: 18)),
+          const Text('Export Visualizer', style: TextStyle(color: Colors.white, fontSize: 18)),
         ],
       ),
       content: Column(
@@ -327,7 +330,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
           // Aspect Ratio Selection (16:9 Landscape vs 9:16 Portrait)
           if (!_isExporting && _progress < 1.0) ...[
             const Text(
-              'Aspect Ratio & Format',
+              'Aspect Ratio & Resolution',
               style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -338,7 +341,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
                   child: GestureDetector(
                     onTap: () => setState(() => _selectedRatio = ratio),
                     child: Container(
-                      margin: EdgeInsets.only(right: ratio == AspectRatioOption.landscape ? 6.0 : 0.0),
+                      margin: EdgeInsets.only(right: ratio == AspectRatioOption.portrait ? 6.0 : 0.0),
                       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
                       decoration: BoxDecoration(
                         color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
@@ -434,7 +437,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
             ],
           ] else ...[
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(8),
@@ -445,7 +448,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Video is rendered offline frame-by-frame with lossless audio synchronization.',
+                      'Renders crisp visualizer graphics directly into your gallery album.',
                       style: TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ),
@@ -466,7 +469,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
             style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: Colors.black),
             onPressed: _startExport,
             icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: const Text('Render Export', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         if (_progress >= 1.0)
           FilledButton.icon(
