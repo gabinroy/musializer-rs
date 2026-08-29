@@ -201,8 +201,8 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> with Widget
 }
 
 enum AspectRatioOption {
-  portrait('9:16 Portrait', '1080x1920 (Reels/TikTok/Shorts)', Icons.stay_current_portrait_rounded),
-  landscape('16:9 Landscape', '1920x1080 (YouTube/Desktop)', Icons.tv_rounded);
+  portrait('9:16 Portrait', '720x1280 (Reels/TikTok/Shorts)', Icons.stay_current_portrait_rounded),
+  landscape('16:9 Landscape', '1280x720 (YouTube/Desktop)', Icons.tv_rounded);
 
   final String title;
   final String resolution;
@@ -224,77 +224,53 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
   String _status = 'Ready to render';
   String? _savedFilePath;
   AspectRatioOption _selectedRatio = AspectRatioOption.portrait;
-  Timer? _timer;
 
   Future<void> _startExport() async {
     setState(() {
       _isExporting = true;
       _progress = 0.0;
-      _status = 'Rasterizing ${_selectedRatio.resolution} spectrum frame...';
+      _status = 'Initializing hardware video encoder...';
       _savedFilePath = null;
     });
 
-    const int totalSteps = 100;
-    int currentStep = 0;
-
-    _timer = Timer.periodic(const Duration(milliseconds: 25), (timer) async {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      currentStep++;
-      final double p = (currentStep / totalSteps).clamp(0.0, 1.0);
-      setState(() {
-        _progress = p;
-        if (p < 0.4) {
-          _status = 'Rasterizing ${_selectedRatio.resolution} GPU spectrum geometry...';
-        } else if (p < 0.8) {
-          _status = 'Rendering high-definition visualizer graphics...';
-        } else {
-          _status = 'Writing lossless visualizer export to gallery...';
-        }
-      });
-
-      if (currentStep >= totalSteps) {
-        timer.cancel();
-        
-        try {
-          final isLandscape = _selectedRatio == AspectRatioOption.landscape;
-          final savedPath = await ExportService.exportVisualizerImageFrame(
-            trackTitle: widget.controller.currentTrack?.title ?? 'Musializer_Track',
-            mode: widget.controller.mode,
-            theme: widget.controller.theme,
-            spectrum: widget.controller.spectrum,
-            peaks: widget.controller.peaks,
-            centerDisplay: widget.controller.circleCenterDisplay,
-            currentTime: widget.controller.currentTime,
-            duration: widget.controller.duration,
-            coverImage: widget.controller.coverImage ?? widget.controller.defaultLogoImage,
-            isLandscape: isLandscape,
-          );
+    try {
+      final isLandscape = _selectedRatio == AspectRatioOption.landscape;
+      final savedPath = await ExportService.renderVisualizerVideo(
+        trackTitle: widget.controller.currentTrack?.title ?? 'Musializer_Track',
+        mode: widget.controller.mode,
+        theme: widget.controller.theme,
+        baseSpectrum: widget.controller.spectrum,
+        peaks: widget.controller.peaks,
+        centerDisplay: widget.controller.circleCenterDisplay,
+        duration: widget.controller.duration,
+        coverImage: widget.controller.coverImage ?? widget.controller.defaultLogoImage,
+        isLandscape: isLandscape,
+        onProgress: (p, s) {
           if (mounted) {
             setState(() {
-              _isExporting = false;
-              _savedFilePath = savedPath;
-              _status = 'Saved to: $savedPath';
+              _progress = p;
+              _status = s;
             });
           }
-        } catch (e) {
-          if (mounted) {
-            setState(() {
-              _isExporting = false;
-              _status = 'Export error: $e';
-            });
-          }
-        }
-      }
-    });
-  }
+        },
+      );
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+          _progress = 1.0;
+          _savedFilePath = savedPath;
+          _status = 'Video export complete!';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isExporting = false;
+          _status = 'Export error: $e';
+        });
+      }
+    }
   }
 
   @override
@@ -309,7 +285,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
         children: [
           Icon(Icons.movie_creation_outlined, color: theme.primary),
           const SizedBox(width: 10),
-          const Text('Export Visualizer', style: TextStyle(color: Colors.white, fontSize: 18)),
+          const Text('Export MP4 Video', style: TextStyle(color: Colors.white, fontSize: 18)),
         ],
       ),
       content: Column(
@@ -448,7 +424,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
                   SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Renders crisp visualizer graphics directly into your gallery album.',
+                      'Encodes real H.264 animated video frames with device hardware acceleration into an MP4 file.',
                       style: TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ),
@@ -469,7 +445,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
             style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: Colors.black),
             onPressed: _startExport,
             icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Render Export', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         if (_progress >= 1.0)
           FilledButton.icon(
