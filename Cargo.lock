@@ -2048,7 +2048,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "musializer-rs"
+name = "musializer-core"
+version = "0.1.1"
+dependencies = [
+ "cpal",
+ "crossbeam-channel",
+ "log",
+ "rustfft",
+ "symphonia",
+]
+
+[[package]]
+name = "musializer-desktop"
 version = "0.1.1"
 dependencies = [
  "cpal",
@@ -2058,6 +2069,7 @@ dependencies = [
  "env_logger",
  "image",
  "log",
+ "musializer-core",
  "reqwest",
  "rfd",
  "rustfft",

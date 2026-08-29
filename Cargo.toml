@@ -1,94 +1,12 @@
-[package]
-name = "musializer-rs"
-version = "0.1.1"
-edition = "2024"
-license = "GPL-3.0-or-later"
-
-[lib]
-crate-type = ["rlib"]
-
-[[bin]]
-name = "musializer-rs"
-path = "src/main.rs"
-
-[dependencies]
-cpal = "0.18.2"
-crossbeam-channel = "0.5.16"
-eframe = { version = "0.28.1", default-features = false, features = [
-    "default_fonts",
-    "wgpu",
-    "wayland",
-    "x11",
-] }
-egui = "0.28.1"
-env_logger = "0.11.11"
-log = "0.4.34"
-rfd = "0.17.2"
-rustfft = "6.4.1"
-symphonia = { version = "0.5.4", features = ["all"] }
-image = { version = "0.25", default-features = false, features = [
-    "png",
-    "jpeg",
-    "webp",
-    "bmp",
-    "gif",
-    "ico",
-    "tiff",
-] }
-
-# Async Runtime & HTTP Networking for In-App Updates
-tokio = { version = "1.43", features = ["rt-multi-thread", "sync", "time", "macros"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-semver = "1.0"
-self_update = { version = "0.41", default-features = false, features = [
-    "rustls",
-    "archive-tar",
-    "archive-zip",
-    "compression-zip-bzip2",
-    "compression-zip-deflate",
-    "compression-flate2",
-] }
-
-[package.metadata.bundle]
-name = "Musializer-RS"
-identifier = "com.musializer.musializer-rs"
-icon = ["assets/icon.png"]
-version = "0.1.1"
-category = "Music"
-short_description = "High-Performance Audio Visualizer"
-long_description = """
-Musializer-RS is a real-time, high-performance cross-platform audio visualization tool built with Rust and egui.
-"""
-
-# Debian (.deb) Packaging Metadata (cargo-deb)
-[package.metadata.deb]
-name = "musializer-rs"
-maintainer = "Gabin Roy <gabinroy@users.noreply.github.com>"
-copyright = "2026 Gabin Roy"
-license-file = ["LICENSE", "4"]
-depends = "$auto, libasound2 (>= 1.1.0), libwayland-client0 (>= 1.20.0), libx11-6, libxcursor1, libxi6, libxrandr2, libxinerama1, libxkbcommon0"
-section = "sound"
-priority = "optional"
-assets = [
-    ["target/release/musializer-rs", "usr/bin/musializer-rs", "755"],
-    ["assets/icon.png", "usr/share/icons/hicolor/256x256/apps/org.musializer.MusializerRS.png", "644"],
-    ["assets/icon.png", "usr/share/pixmaps/musializer-rs.png", "644"],
-    ["distribution/org.musializer.MusializerRS.desktop", "usr/share/applications/org.musializer.MusializerRS.desktop", "644"],
-    ["distribution/org.musializer.MusializerRS.metainfo.xml", "usr/share/metainfo/org.musializer.MusializerRS.metainfo.xml", "644"],
+[workspace]
+members = [
+    "crates/musializer-core",
+    "crates/musializer-desktop",
 ]
+resolver = "2"
 
-# Fedora / RHEL (.rpm) Packaging Metadata (cargo-generate-rpm)
-[package.metadata.generate-rpm]
-name = "musializer-rs"
-summary = "High-Performance GPU-Accelerated Audio Visualizer in Rust"
-description = "Musializer-RS is a real-time, high-performance audio visualization tool built with Rust."
-license = "GPLv3+"
-assets = [
-    { source = "target/release/musializer-rs", dest = "/usr/bin/musializer-rs", mode = "755" },
-    { source = "assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/org.musializer.MusializerRS.png", mode = "644" },
-    { source = "assets/icon.png", dest = "/usr/share/pixmaps/musializer-rs.png", mode = "644" },
-    { source = "distribution/org.musializer.MusializerRS.desktop", dest = "/usr/share/applications/org.musializer.MusializerRS.desktop", mode = "644" },
-    { source = "distribution/org.musializer.MusializerRS.metainfo.xml", dest = "/usr/share/metainfo/org.musializer.MusializerRS.metainfo.xml", mode = "644" },
-]
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"

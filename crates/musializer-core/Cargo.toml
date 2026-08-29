@@ -1,0 +1,18 @@
+[package]
+name = "musializer-core"
+version = "0.1.1"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[lib]
+crate-type = ["rlib", "staticlib", "cdylib"]
+
+[dependencies]
+cpal = "0.18.2"
+crossbeam-channel = "0.5.16"
+rustfft = "6.4.1"
+symphonia = { version = "0.5.4", features = ["all"] }
+log = "0.4.34"
+
+[features]
+default = []

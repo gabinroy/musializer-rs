@@ -1,4 +1,4 @@
-use musializer_rs::MusializerApp;
+use musializer_desktop::MusializerApp;
 
 fn main() -> eframe::Result<()> {
     env_logger::init();
