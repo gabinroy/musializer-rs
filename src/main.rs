@@ -48,7 +48,8 @@ fn main() -> eframe::Result<()> {
         .with_app_id("com.musializer.app")
         .with_inner_size([1100.0, 720.0])
         .with_min_inner_size([360.0, 480.0])
-        .with_drag_and_drop(true);
+        .with_drag_and_drop(true)
+        .with_decorations(false);
 
     if let Some(icon) = icon_data {
         viewport = viewport.with_icon(icon);

@@ -13,8 +13,8 @@ use crate::audio::{AudioPlayer, AudioSync, AudioTrack};
 use crate::dsp::{EmaSmoother, FftProcessor, FrequencyBands};
 use crate::export::{ExportConfig, VideoExporter};
 use crate::ui::{
-    CircleCenterDisplay, ColorTheme, DragDropOverlay, DroppedItem, TransportControls,
-    VisualizerMode, VisualizerWidget, apply_theme,
+    CircleCenterDisplay, ColorTheme, CustomTitleBar, DragDropOverlay, DroppedItem, TITLE_BAR_HEIGHT,
+    TransportControls, VisualizerMode, VisualizerWidget, apply_theme,
 };
 
 pub struct MusializerApp {
@@ -36,6 +36,7 @@ pub struct MusializerApp {
     circle_center_texture: Option<TextureHandle>,
     raw_cover_image: Option<Arc<image::RgbaImage>>,
     image_loading_timer: Option<Instant>,
+    title_bar_logo: Option<TextureHandle>,
 
     last_frame_time: Instant,
     cached_wave: Vec<f32>,
@@ -71,6 +72,7 @@ impl MusializerApp {
 
         // Load default embedded logo texture for center cover art
         let (circle_center_texture, raw_cover_image) = load_default_logo(&cc.egui_ctx);
+        let title_bar_logo = load_title_bar_logo(&cc.egui_ctx);
 
         Self {
             player,
@@ -88,6 +90,7 @@ impl MusializerApp {
             circle_center_texture,
             raw_cover_image,
             image_loading_timer: None,
+            title_bar_logo,
 
             last_frame_time: Instant::now(),
             cached_wave: vec![0.0; fft_size],
@@ -185,6 +188,14 @@ impl MusializerApp {
 fn make_circular_color_and_rgba_image(
     dynamic_img: image::DynamicImage,
 ) -> (ColorImage, image::RgbaImage) {
+    let (size, raw) = make_circular_raw(dynamic_img);
+    let rgba_img = image::RgbaImage::from_raw(size, size, raw.clone()).unwrap_or_default();
+    let color_img = ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw);
+    (color_img, rgba_img)
+}
+
+/// Crops to a centered square and produces anti-aliased circular raw RGBA bytes.
+fn make_circular_raw(dynamic_img: image::DynamicImage) -> (u32, Vec<u8>) {
     let (w, h) = (dynamic_img.width(), dynamic_img.height());
     let size = w.min(h);
     let x_offset = (w - size) / 2;
@@ -215,10 +226,7 @@ fn make_circular_color_and_rgba_image(
         }
     }
 
-    let rgba_img = image::RgbaImage::from_raw(size, size, raw_pixels.clone()).unwrap_or_default();
-    let color_img = ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw_pixels);
-
-    (color_img, rgba_img)
+    (size, raw_pixels)
 }
 
 fn load_default_logo(
@@ -231,6 +239,17 @@ fn load_default_logo(
         return (Some(tex), Some(Arc::new(rgba_img)));
     }
     (None, None)
+}
+
+/// Loads a compact square logo texture for the custom title bar.
+fn load_title_bar_logo(ctx: &egui::Context) -> Option<TextureHandle> {
+    let icon_bytes = include_bytes!("../assets/icon.png");
+    if let Ok(img) = image::load_from_memory(icon_bytes) {
+        let (size, raw) = make_circular_raw(img);
+        let color_img = ColorImage::from_rgba_unmultiplied([size as usize, size as usize], &raw);
+        return Some(ctx.load_texture("title_bar_logo", color_img, TextureOptions::LINEAR));
+    }
+    None
 }
 
 /// Helper to launch the default system video player for the given file
@@ -343,6 +362,22 @@ impl eframe::App for MusializerApp {
 
         let is_exporting = self.exporter.is_exporting();
         let export_prog = self.exporter.get_progress();
+
+        // Custom Title Bar Panel
+        TopBottomPanel::top("title_bar_panel")
+            .exact_height(TITLE_BAR_HEIGHT)
+            .frame(
+                egui::Frame::none()
+                    .fill(Color32::from_rgb(14, 17, 24))
+                    .inner_margin(egui::Margin::symmetric(12.0, 0.0)),
+            )
+            .show(ctx, |ui| {
+                ui.set_height(TITLE_BAR_HEIGHT);
+                ui.vertical_centered_justified(|ui| {
+                    ui.set_height(TITLE_BAR_HEIGHT);
+                    CustomTitleBar::show(ui, self.title_bar_logo.as_ref(), "Musializer-RS");
+                });
+            });
 
         // Bottom Controls Panel
         TopBottomPanel::bottom("bottom_controls_panel")
