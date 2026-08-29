@@ -140,6 +140,22 @@ pub fn get_spectrum(dt: f32) -> Vec<f32> {
     Vec::new()
 }
 
+/// Extracts 16-bit signed PCM audio bytes for offline video export (stereo, 44100Hz)
+pub fn get_offline_audio_pcm() -> Result<Vec<u8>, String> {
+    let lock = ENGINE.lock().map_err(|e| format!("Engine lock error: {:?}", e))?;
+    let engine = lock.as_ref().ok_or_else(|| "Engine not initialized".to_string())?;
+    let track = engine.get_track().ok_or_else(|| "No track loaded".to_string())?;
+    
+    // Convert stereo f32 samples to 16-bit PCM bytes
+    let mut pcm_bytes = Vec::with_capacity(track.samples.len() * 2);
+    for &sample in &track.samples {
+        let clamped = sample.clamp(-1.0, 1.0);
+        let s16 = (clamped * 32767.0) as i16;
+        pcm_bytes.extend_from_slice(&s16.to_le_bytes());
+    }
+    Ok(pcm_bytes)
+}
+
 // Android JNI initializer for ndk-context / CPAL / AAudio
 #[cfg(target_os = "android")]
 static CONTEXT_INIT_ONCE: std::sync::Once = std::sync::Once::new();

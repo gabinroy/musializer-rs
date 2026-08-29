@@ -278,183 +278,217 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
     final theme = widget.controller.theme;
     final track = widget.controller.currentTrack;
 
-    return AlertDialog(
-      backgroundColor: const Color(0xFF12141C),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
-      title: Row(
-        children: [
-          Icon(Icons.movie_creation_outlined, color: theme.primary),
-          const SizedBox(width: 10),
-          const Text('Export MP4 Video', style: TextStyle(color: Colors.white, fontSize: 18)),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Track: ${track?.title ?? "Audio"}',
-            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Mode: ${widget.controller.mode.title}  •  Preset: ${theme.name}  •  Duration: ${widget.controller.duration.toStringAsFixed(1)}s',
-            style: const TextStyle(color: Colors.white60, fontSize: 11.5),
-          ),
-          const SizedBox(height: 14),
+    return PopScope(
+      canPop: !_isExporting,
+      child: AlertDialog(
+        backgroundColor: const Color(0xFF12141C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        title: Row(
+          children: [
+            Icon(Icons.movie_creation_outlined, color: theme.primary),
+            const SizedBox(width: 10),
+            const Text('Export MP4 Video', style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Track: ${track?.title ?? "Audio"}',
+                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Mode: ${widget.controller.mode.title}  •  Preset: ${theme.name}  •  Duration: ${widget.controller.duration.toStringAsFixed(1)}s',
+                style: const TextStyle(color: Colors.white60, fontSize: 11.5),
+              ),
+              const SizedBox(height: 14),
 
-          // Aspect Ratio Selection (16:9 Landscape vs 9:16 Portrait)
-          if (!_isExporting && _progress < 1.0) ...[
-            const Text(
-              'Aspect Ratio & Resolution',
-              style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: AspectRatioOption.values.map((ratio) {
-                final isSelected = ratio == _selectedRatio;
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedRatio = ratio),
-                    child: Container(
-                      margin: EdgeInsets.only(right: ratio == AspectRatioOption.portrait ? 6.0 : 0.0),
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                      decoration: BoxDecoration(
-                        color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(10.0),
-                        border: Border.all(
-                          color: isSelected ? theme.primary : Colors.white.withValues(alpha: 0.08),
-                          width: isSelected ? 1.5 : 1.0,
+              // Aspect Ratio Selection (16:9 Landscape vs 9:16 Portrait)
+              if (!_isExporting && _progress < 1.0) ...[
+                const Text(
+                  'Aspect Ratio & Resolution',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: AspectRatioOption.values.map((ratio) {
+                    final isSelected = ratio == _selectedRatio;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedRatio = ratio),
+                        child: Container(
+                          margin: EdgeInsets.only(right: ratio == AspectRatioOption.portrait ? 6.0 : 0.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                          decoration: BoxDecoration(
+                            color: isSelected ? theme.primary.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(10.0),
+                            border: Border.all(
+                              color: isSelected ? theme.primary : Colors.white.withValues(alpha: 0.08),
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(ratio.icon, color: isSelected ? theme.primary : Colors.white60, size: 22),
+                              const SizedBox(height: 4),
+                              Text(
+                                ratio.title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: isSelected ? Colors.white : Colors.white70,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                ratio.resolution,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: isSelected ? theme.primary : Colors.white38,
+                                  fontSize: 9.5,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(ratio.icon, color: isSelected ? theme.primary : Colors.white60, size: 22),
-                          const SizedBox(height: 4),
-                          Text(
-                            ratio.title,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.white70,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            ratio.resolution,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: isSelected ? theme.primary : Colors.white38,
-                              fontSize: 9.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-          ],
-
-          if (_isExporting || _progress >= 1.0) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: _progress,
-                minHeight: 8,
-                backgroundColor: Colors.white.withValues(alpha: 0.1),
-                valueColor: AlwaysStoppedAnimation<Color>(theme.primary),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    _status,
-                    style: TextStyle(color: theme.primary, fontSize: 11.5, fontWeight: FontWeight.w600),
-                  ),
+                    );
+                  }).toList(),
                 ),
-                Text(
-                  '${(_progress * 100).toInt()}%',
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                ),
+                const SizedBox(height: 16),
               ],
-            ),
-            if (_savedFilePath != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.greenAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
+
+              if (_isExporting || _progress >= 1.0) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: _progress,
+                    minHeight: 8,
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
+                    valueColor: AlwaysStoppedAnimation<Color>(theme.primary),
+                  ),
                 ),
-                child: Row(
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.folder_open_rounded, color: Colors.greenAccent, size: 20),
-                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _savedFilePath!,
-                        style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        _status,
+                        style: TextStyle(color: theme.primary, fontSize: 11.5, fontWeight: FontWeight.w600),
+                        overflow: TextOverflow.visible,
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${(_progress * 100).toInt()}%',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ] else ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline_rounded, color: Colors.cyanAccent, size: 18),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Encodes real H.264 animated video frames with device hardware acceleration into an MP4 file.',
-                      style: TextStyle(color: Colors.white70, fontSize: 11),
+
+                // Warning badge during export
+                if (_isExporting) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.35)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Please do not close or minimize the app until export completes.\n(Screen lock is kept awake automatically).',
+                            style: TextStyle(color: Colors.amber, fontSize: 11, height: 1.35, fontWeight: FontWeight.w500),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
+
+                if (_savedFilePath != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.greenAccent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.folder_open_rounded, color: Colors.greenAccent, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _savedFilePath!,
+                            style: const TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.w500),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ] else ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline_rounded, color: Colors.cyanAccent, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Encodes real H.264 video with synchronized stereo audio directly into an MP4 file.',
+                          style: TextStyle(color: Colors.white70, fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          if (!_isExporting && _progress < 1.0)
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
             ),
-          ],
+          if (!_isExporting && _progress < 1.0)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: Colors.black),
+              onPressed: _startExport,
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          if (_progress >= 1.0)
+            FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black),
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.check_rounded, size: 18),
+              label: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
         ],
       ),
-      actions: [
-        if (!_isExporting && _progress < 1.0)
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
-          ),
-        if (!_isExporting && _progress < 1.0)
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: theme.primary, foregroundColor: Colors.black),
-            onPressed: _startExport,
-            icon: const Icon(Icons.download_rounded, size: 18),
-            label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        if (_progress >= 1.0)
-          FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: Colors.greenAccent, foregroundColor: Colors.black),
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-      ],
     );
   }
 }

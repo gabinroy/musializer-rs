@@ -132,3 +132,9 @@ impl AudioVisualizerEngine {
         self.smoother.values().to_vec()
     }
 }
+
+impl AudioVisualizerEngine {
+    pub fn get_track(&self) -> Option<std::sync::Arc<AudioTrack>> {
+        self.track.clone()
+    }
+}
