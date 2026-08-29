@@ -9,6 +9,24 @@
   Built with <strong>Rust</strong>, <strong>egui</strong> (Desktop), and <strong>Flutter</strong> (Mobile).
 </p>
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Desktop-Rust%20%2B%20egui-blue?logo=rust" alt="Desktop Ready" />
+  <img src="https://img.shields.io/badge/Mobile-Flutter%20%2B%20Rust%20Core-teal?logo=flutter" alt="Mobile Ready" />
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-darkgreen" alt="Cross Platform" />
+  <img src="https://img.shields.io/badge/License-GPL--3.0-orange" alt="License" />
+</p>
+
+---
+
+## ✨ Features
+
+- ⚡ **Pure Rust DSP Audio Engine**: Lossless decoding via `Symphonia`, low-latency audio via `CPAL`, Hann window FFT (`rustfft`), log frequency band aggregation, and EMA smoothing.
+- 📱 **Cross-Platform Mobile App (Android & iOS)**: 120 FPS hardware-accelerated Flutter UI powered by `musializer-core` via `flutter_rust_bridge`.
+- 🖥️ **Widescreen Desktop App**: Pure Rust `egui`/`eframe` with instant drag & drop, real-time waveform, spectrum bars, and radial visualizers.
+- 🎬 **Offline Video Exporter**: Render complete animated **H.264 MP4 videos** in **9:16 Portrait** (Shorts/Reels/TikTok) and **16:9 Landscape** (YouTube/Desktop) with synchronized stereo AAC audio.
+- 🔄 **In-App Auto-Updates**: Seamless GitHub Releases update checker with direct in-app APK download and package installer for Android.
+- 🎨 **Rich Visualizer Modes & Custom Covers**: Spectrum Bars, Radial Pulse with customizable center displays (Cover Art with app icon fallback, Track Title, Elapsed/Remaining Time, Glow Core), and Waveform mode.
+
 ---
 
 ## 🏛️ Project Architecture (Multi-Crate Workspace)
@@ -28,7 +46,7 @@ musializer-rs/
 │   │   ├── build-android.sh      # Android NDK build automation
 │   │   └── build-ios.sh          # iOS build automation
 │   │
-│   └── musializer-desktop/       # Existing high-performance egui / eframe desktop application
+│   └── musializer-desktop/       # High-performance egui / eframe desktop application
 │       └── src/
 │           ├── main.rs           # Desktop entry point
 │           ├── app.rs            # Desktop state loop
@@ -38,11 +56,12 @@ musializer-rs/
 │
 └── mobile/                       # High-performance 120 FPS Flutter mobile app (Android & iOS)
     ├── lib/
-    │   ├── main.dart             # Mobile app entry point
-    │   ├── models/               # Visualizer modes & color themes
+    │   ├── main.dart             # Mobile app entry point & lifecycle manager
+    │   ├── models/               # Visualizer modes, color themes, center displays
     │   ├── painters/             # 120 FPS CustomPainter visualizers (Bars, Radial, Waveform)
+    │   ├── services/             # Hardware MP4 video exporter & GitHub auto-updater
     │   ├── state/                # VisualizerController & real-time ticker
-    │   └── widgets/              # Header, mode switcher, seek timeline, volume & gain
+    │   └── widgets/              # Playback controls, mode bar, update dialog, export modal
     ├── android/                  # Android Gradle build & permissions
     └── ios/                      # iOS Runner & Audio Background capabilities
 ```
@@ -111,11 +130,11 @@ flutter run -d ios
 Run the entire test suite across all workspace crates and the mobile app:
 
 ```bash
-# Rust Workspace Unit Tests (DSP, decoding, audio sync)
+# Rust Workspace Unit Tests (DSP, decoding, audio sync, desktop UI)
 cargo test --workspace
 
-# Flutter Mobile Unit & Widget Tests
-cd mobile && flutter test && flutter analyze
+# Flutter Mobile Code Analysis & Unit Tests
+cd mobile && flutter analyze
 ```
 
 ---
