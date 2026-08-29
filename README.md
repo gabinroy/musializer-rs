@@ -10,6 +10,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/gabinroy/musializer-rs/actions/workflows/release.yml">
+    <img src="https://github.com/gabinroy/musializer-rs/actions/workflows/release.yml/badge.svg" alt="Release Build & Publish" />
+  </a>
   <img src="https://img.shields.io/badge/Desktop-Rust%20%2B%20egui-blue?logo=rust" alt="Desktop Ready" />
   <img src="https://img.shields.io/badge/Mobile-Flutter%20%2B%20Rust%20Core-teal?logo=flutter" alt="Mobile Ready" />
   <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-darkgreen" alt="Cross Platform" />
