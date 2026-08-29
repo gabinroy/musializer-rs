@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Musializer-RS
+GenericName=Audio Visualizer
+Comment=High-Performance GPU-Accelerated Audio Visualizer in Rust
+Exec=musializer-rs %U
+Icon=org.musializer.MusializerRS
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;AudioVideoEditing;Player;Music;
+Keywords=audio;visualizer;music;dsp;spectrum;fft;
+MimeType=audio/mpeg;audio/x-wav;audio/flac;audio/ogg;audio/aac;audio/m4a;
+StartupNotify=true
+StartupWMClass=com.musializer.app

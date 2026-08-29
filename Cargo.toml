@@ -1,6 +1,6 @@
 [package]
 name = "musializer-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
@@ -55,9 +55,40 @@ self_update = { version = "0.41", default-features = false, features = [
 name = "Musializer-RS"
 identifier = "com.musializer.musializer-rs"
 icon = ["assets/icon.png"]
-version = "0.1.0"
+version = "0.1.1"
 category = "Music"
 short_description = "High-Performance Audio Visualizer"
 long_description = """
 Musializer-RS is a real-time, high-performance cross-platform audio visualization tool built with Rust and egui.
 """
+
+# Debian (.deb) Packaging Metadata (cargo-deb)
+[package.metadata.deb]
+name = "musializer-rs"
+maintainer = "Gabin Roy <gabinroy@users.noreply.github.com>"
+copyright = "2026 Gabin Roy"
+license-file = ["LICENSE", "4"]
+depends = "$auto, libasound2 (>= 1.1.0), libwayland-client0 (>= 1.20.0), libx11-6, libxcursor1, libxi6, libxrandr2, libxinerama1, libxkbcommon0"
+section = "sound"
+priority = "optional"
+assets = [
+    ["target/release/musializer-rs", "usr/bin/musializer-rs", "755"],
+    ["assets/icon.png", "usr/share/icons/hicolor/256x256/apps/org.musializer.MusializerRS.png", "644"],
+    ["assets/icon.png", "usr/share/pixmaps/musializer-rs.png", "644"],
+    ["distribution/org.musializer.MusializerRS.desktop", "usr/share/applications/org.musializer.MusializerRS.desktop", "644"],
+    ["distribution/org.musializer.MusializerRS.metainfo.xml", "usr/share/metainfo/org.musializer.MusializerRS.metainfo.xml", "644"],
+]
+
+# Fedora / RHEL (.rpm) Packaging Metadata (cargo-generate-rpm)
+[package.metadata.generate-rpm]
+name = "musializer-rs"
+summary = "High-Performance GPU-Accelerated Audio Visualizer in Rust"
+description = "Musializer-RS is a real-time, high-performance audio visualization tool built with Rust."
+license = "GPLv3+"
+assets = [
+    { source = "target/release/musializer-rs", dest = "/usr/bin/musializer-rs", mode = "755" },
+    { source = "assets/icon.png", dest = "/usr/share/icons/hicolor/256x256/apps/org.musializer.MusializerRS.png", mode = "644" },
+    { source = "assets/icon.png", dest = "/usr/share/pixmaps/musializer-rs.png", mode = "644" },
+    { source = "distribution/org.musializer.MusializerRS.desktop", dest = "/usr/share/applications/org.musializer.MusializerRS.desktop", mode = "644" },
+    { source = "distribution/org.musializer.MusializerRS.metainfo.xml", dest = "/usr/share/metainfo/org.musializer.MusializerRS.metainfo.xml", mode = "644" },
+]

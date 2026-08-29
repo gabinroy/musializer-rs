@@ -1,0 +1,48 @@
+# Created using wingetcreate 1.6.0.0
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.1.6.0.schema.json
+
+PackageIdentifier: GabinRoy.MusializerRS
+PackageVersion: 0.1.0
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0
+---
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: GabinRoy.MusializerRS
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: Gabin Roy
+PublisherUrl: https://github.com/gabinroy
+PublisherSupportUrl: https://github.com/gabinroy/musializer-rs/issues
+PackageName: Musializer-RS
+PackageUrl: https://github.com/gabinroy/musializer-rs
+License: GPL-3.0-or-later
+LicenseUrl: https://raw.githubusercontent.com/gabinroy/musializer-rs/main/LICENSE
+ShortDescription: High-Performance GPU-Accelerated Audio Visualizer in Rust
+Description: Musializer-RS is a native, hardware-accelerated desktop audio visualizer bringing 60+ FPS fluid spectrum analysis, oscilloscope waveforms, radial pulses, and deterministic MP4 video rendering.
+Tags:
+  - audio
+  - visualizer
+  - music
+  - dsp
+  - spectrum
+  - rust
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
+---
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+
+PackageIdentifier: GabinRoy.MusializerRS
+PackageVersion: 0.1.0
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: musializer-rs.exe
+        PortableCommandAlias: musializer-rs
+    InstallerUrl: https://github.com/gabinroy/musializer-rs/releases/download/v0.1.0/musializer-rs-x86_64-pc-windows-msvc.zip
+    InstallerSha256: "0000000000000000000000000000000000000000000000000000000000000000"
+ManifestType: installer
+ManifestVersion: 1.6.0

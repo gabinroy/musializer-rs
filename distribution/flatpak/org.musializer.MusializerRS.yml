@@ -1,0 +1,35 @@
+app-id: org.musializer.MusializerRS
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: musializer-rs
+
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=host:ro
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    RUST_BACKTRACE: '1'
+
+modules:
+  - name: musializer-rs
+    buildsystem: simple
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml || cargo fetch --manifest-path Cargo.toml
+      - cargo --offline build --release --verbose || cargo build --release --verbose
+      - install -Dm755 target/release/musializer-rs /app/bin/musializer-rs
+      - install -Dm644 assets/icon.png /app/share/icons/hicolor/256x256/apps/org.musializer.MusializerRS.png
+      - install -Dm644 distribution/org.musializer.MusializerRS.desktop /app/share/applications/org.musializer.MusializerRS.desktop
+      - install -Dm644 distribution/org.musializer.MusializerRS.metainfo.xml /app/share/metainfo/org.musializer.MusializerRS.metainfo.xml
+    sources:
+      - type: git
+        url: https://github.com/gabinroy/musializer-rs.git
+        tag: v0.1.0

@@ -65,6 +65,38 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
 
 - 📐 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): Detailed technical architecture, math equations, and dataflow diagrams.
 - 📦 [docs/APP_EXPORTING_COMMANDS.md](docs/APP_EXPORTING_COMMANDS.md): Full command-line reference for exporting & packaging desktop apps.
+- 🚀 [docs/PACKAGE_DISTRIBUTION_GUIDE.md](docs/PACKAGE_DISTRIBUTION_GUIDE.md): Maintainer setup for automated package distribution across AUR, Winget, Flathub, APT, and DNF.
+
+---
+
+## 📦 Installation & Package Managers
+
+### 🐧 Arch Linux / CachyOS (AUR)
+```bash
+yay -S musializer-rs-bin
+```
+
+### 🪟 Windows (Winget)
+```powershell
+winget install GabinRoy.MusializerRS
+```
+
+### ❄️ Universal Linux (Flatpak / Flathub)
+```bash
+flatpak install flathub org.musializer.MusializerRS
+```
+
+### 🎩 Fedora / RHEL (DNF via COPR)
+```bash
+sudo dnf copr enable gabinroy/musializer-rs
+sudo dnf install musializer-rs
+```
+
+### 🟣 Debian / Ubuntu / Mint (APT)
+Direct `.deb` installation:
+```bash
+sudo dpkg -i musializer-rs-*.deb || sudo apt-get install -f -y
+```
 
 ---
 

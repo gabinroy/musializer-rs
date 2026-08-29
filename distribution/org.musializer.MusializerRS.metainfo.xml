@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.musializer.MusializerRS</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Musializer-RS</name>
+  <summary>High-performance, GPU-accelerated audio visualizer written in Rust</summary>
+  
+  <description>
+    <p>
+      Musializer-RS is a native, hardware-accelerated desktop audio visualizer bringing 60+ FPS fluid spectrum analysis, oscilloscope waveforms, radial pulses, and deterministic MP4 video rendering.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Pure-Rust multi-format audio decoding (MP3, WAV, FLAC, OGG, AAC).</li>
+      <li>Hardware SIMD Fast Fourier Transform (FFT) with Hann windowing.</li>
+      <li>Asymmetric Exponential Moving Average (EMA) and floating peak hold dynamics.</li>
+      <li>Customizable album art center hub with countdown and elapsed timestamps.</li>
+      <li>Deterministic offline 60 FPS video export via automatic FFmpeg piping.</li>
+      <li>In-app automated version updates and release changelogs.</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">org.musializer.MusializerRS.desktop</launchable>
+
+  <url type="homepage">https://github.com/gabinroy/musializer-rs</url>
+  <url type="bugtracker">https://github.com/gabinroy/musializer-rs/issues</url>
+
+  <provides>
+    <binary>musializer-rs</binary>
+  </provides>
+
+  <releases>
+    <release version="0.1.1" date="2026-08-29">
+      <description>
+        <p>Cross-platform release packaging improvements including macOS .dmg disk images, updated Linux bundles, and self-update stability fixes.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-08-29">
+      <description>
+        <p>Initial release with GPU rendering, multi-format audio playback, and in-app automated updates.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1" />
+</component>
