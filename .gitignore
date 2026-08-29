@@ -17,3 +17,19 @@ dist/
 *.wav
 *.mp3
 *.flac
+
+# Flutter & Mobile build artifacts
+**/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/Flutter/Flutter.podspec
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/app.framework
+mobile/ios/Flutter/flutter_assets/
+mobile/ios/ServiceDefinitions.json
+mobile/ios/Podfile.lock
+mobile/ios/Pods/
