@@ -26,21 +26,33 @@ impl DragDropOverlay {
         let dropped_files = ui.ctx().input(|i| i.raw.dropped_files.clone());
         for file in dropped_files {
             if let Some(path) = file.path {
-                let ext = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("")
-                    .to_lowercase();
-                if matches!(
-                    ext.as_str(),
-                    "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "ico" | "tiff" | "tif"
-                ) {
-                    dropped_item = Some(DroppedItem::ImagePath(path));
-                } else {
-                    dropped_item = Some(DroppedItem::AudioPath(path));
+                let resolved_path = resolve_dropped_path(path);
+                if let Some(item) = categorize_path(resolved_path) {
+                    dropped_item = Some(item);
+                    break;
                 }
-                break;
             } else if let Some(bytes) = file.bytes {
+                // On Wayland / KDE Plasma, text/uri-list payloads may be provided as raw bytes
+                if let Ok(text) = std::str::from_utf8(&bytes) {
+                    let mut found_from_text = false;
+                    for line in text.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.is_empty() || trimmed.starts_with('#') {
+                            continue;
+                        }
+                        if let Some(decoded_path) = parse_uri_to_path(trimmed) {
+                            if let Some(item) = categorize_path(decoded_path) {
+                                dropped_item = Some(item);
+                                found_from_text = true;
+                                break;
+                            }
+                        }
+                    }
+                    if found_from_text {
+                        break;
+                    }
+                }
+
                 let name = file.name.clone();
                 let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
                 if matches!(
@@ -57,8 +69,6 @@ impl DragDropOverlay {
                 break;
             }
         }
-
-        let is_linux = cfg!(target_os = "linux");
 
         // Draw empty state prompt if no track is loaded
         if is_empty {
@@ -104,14 +114,8 @@ impl DragDropOverlay {
             child_ui.label(RichText::new("🎵").size(44.0));
             child_ui.add_space(8.0);
 
-            let main_title = if is_linux {
-                "Click to Open Audio File"
-            } else {
-                "Drag & Drop Audio File Here"
-            };
-
             child_ui.label(
-                RichText::new(main_title)
+                RichText::new("Drag & Drop Audio File Here")
                     .size(22.0)
                     .strong()
                     .color(Color32::from_rgb(225, 235, 255)),
@@ -174,3 +178,108 @@ impl DragDropOverlay {
         dropped_item
     }
 }
+
+/// Categorizes a path into an Image or Audio dropped item based on extension
+fn categorize_path(path: std::path::PathBuf) -> Option<DroppedItem> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif" | "ico" | "tiff" | "tif"
+    ) {
+        Some(DroppedItem::ImagePath(path))
+    } else if matches!(
+        ext.as_str(),
+        "mp3" | "wav" | "flac" | "ogg" | "aac" | "m4a" | "aiff" | "aif" | "wma" | "opus"
+    ) {
+        Some(DroppedItem::AudioPath(path))
+    } else {
+        // Fallback for audio paths
+        Some(DroppedItem::AudioPath(path))
+    }
+}
+
+/// Resolves a dropped path, handling raw string percent-encoding if present
+fn resolve_dropped_path(path: std::path::PathBuf) -> std::path::PathBuf {
+    let path_str = path.to_string_lossy();
+    if path_str.starts_with("file://") {
+        if let Some(parsed) = parse_uri_to_path(&path_str) {
+            return parsed;
+        }
+    }
+    if path_str.contains('%') {
+        let decoded = percent_decode(&path_str);
+        std::path::PathBuf::from(decoded)
+    } else {
+        path
+    }
+}
+
+/// Parses a file:// URI or raw file line into a valid PathBuf with percent-decoding
+fn parse_uri_to_path(uri: &str) -> Option<std::path::PathBuf> {
+    let raw = uri.trim();
+    let stripped = if let Some(rest) = raw.strip_prefix("file://localhost") {
+        rest
+    } else if let Some(rest) = raw.strip_prefix("file://") {
+        rest
+    } else {
+        raw
+    };
+
+    let decoded = percent_decode(stripped);
+    if decoded.is_empty() {
+        None
+    } else {
+        Some(std::path::PathBuf::from(decoded))
+    }
+}
+
+/// Pure-Rust percent-decoding for URI paths without requiring external dependencies
+fn percent_decode(input: &str) -> String {
+    let bytes = input.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(hex_val) = u8::from_str_radix(
+                std::str::from_utf8(&bytes[i + 1..=i + 2]).unwrap_or(""),
+                16,
+            ) {
+                out.push(hex_val);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_percent_decode_spaces_and_symbols() {
+        let input = "file:///home/user/Music/My%20Cool%20Song%231.mp3";
+        let path = parse_uri_to_path(input).unwrap();
+        assert_eq!(
+            path.to_str().unwrap(),
+            "/home/user/Music/My Cool Song#1.mp3"
+        );
+    }
+
+    #[test]
+    fn test_parse_uri_local_and_raw() {
+        let raw = "/home/user/Music/song.wav";
+        assert_eq!(
+            parse_uri_to_path(raw).unwrap().to_str().unwrap(),
+            "/home/user/Music/song.wav"
+        );
+    }
+}
+

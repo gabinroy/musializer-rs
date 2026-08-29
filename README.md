@@ -46,11 +46,13 @@ Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysi
 ## 🐧 Linux Drag & Drop Note
 
 > [!NOTE]
-> On **Linux Wayland compositors** (such as GNOME Shell, KDE Wayland, Hyprland), cross-application window file drag-and-drop offers are currently subject to upstream `winit` / Wayland `wl_data_device` protocol limitations.
+> File drag-and-drop works seamlessly on Windows, macOS, and standard Linux desktop environments (e.g., Linux Mint, Cinnamon, X11). 
 > 
-> To load audio or custom album art on Linux:
-> - Click anywhere on the center prompt (**"Click to Open Audio File"**) or use the **"📂 Open Audio..."** button in the transport bar to open files directly via the native system file dialog.
-> - Drag-and-drop works out of the box on **Windows** and **macOS**.
+> On certain **customized Linux Wayland compositors** (such as KDE Plasma 6 / Dolphin on Arch / CachyOS), cross-window drag-and-drop data offers may occasionally fail due to upstream Wayland protocol limitations. 
+> 
+> If you encounter this:
+> - Simply click the center card or the **"📂 Open Audio File"** button to load tracks via the native system file picker.
+> - Or launch the app with the XWayland fallback flag: `cargo run --release -- --x11`.
 
 ---
 

@@ -3,12 +3,41 @@ use musializer_rs::MusializerApp;
 fn main() -> eframe::Result<()> {
     env_logger::init();
 
-    // On Linux desktop environments, winit Wayland drag-and-drop can fail/show stop icon.
-    // Setting WINIT_UNIX_BACKEND to "x11" fallback if not explicitly defined ensures cross-compositor DnD works reliably.
+    let args: Vec<String> = std::env::args().collect();
+
+    // Check for CLI help or flags
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        println!("Musializer-RS - High-Performance Real-Time Audio Visualizer\n");
+        println!("Usage: musializer-rs [OPTIONS]\n");
+        println!("Options:");
+        println!("  --x11       Force X11 / XWayland backend (recommended if native Wayland DnD issues occur)");
+        println!("  --wayland   Force native Wayland backend");
+        println!("  -h, --help  Print help information");
+        println!("  -v, --version Print version");
+        return Ok(());
+    }
+
+    if args.iter().any(|a| a == "--version" || a == "-v") {
+        println!("Musializer-RS v{}", env!("CARGO_PKG_VERSION"));
+        return Ok(());
+    }
+
+    // Backend selection for Linux environments
     #[cfg(target_os = "linux")]
-    if std::env::var_os("WINIT_UNIX_BACKEND").is_none() && std::env::var_os("DISPLAY").is_some() {
-        // Safe default on Linux desktops with X11/XWayland available
-        // std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+    {
+        if args.iter().any(|a| a == "--x11") {
+            // SAFETY: Executed at the very start of main before multi-threaded activity
+            unsafe {
+                std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+            }
+            log::info!("Forced X11/XWayland backend via --x11 CLI flag");
+        } else if args.iter().any(|a| a == "--wayland") {
+            // SAFETY: Executed at the very start of main before multi-threaded activity
+            unsafe {
+                std::env::set_var("WINIT_UNIX_BACKEND", "wayland");
+            }
+            log::info!("Forced native Wayland backend via --wayland CLI flag");
+        }
     }
 
     // Embed icon bytes at compile-time for native desktop window & taskbar icons (Linux, Windows, macOS)
