@@ -164,17 +164,20 @@ fn control_button(
     response.on_hover_text(hover_text)
 }
 
+/// Half-extent of the minimize/maximize/close icons (10.0 px total).
+const ICON_HALF: f32 = 5.0;
+
 /// Minimize: a single short horizontal line.
 fn minimize_icon(painter: &egui::Painter, rect: Rect, stroke: Stroke) {
     let y = rect.center().y;
-    let x0 = rect.center().x - 7.0;
-    let x1 = rect.center().x + 7.0;
+    let x0 = rect.center().x - ICON_HALF;
+    let x1 = rect.center().x + ICON_HALF;
     painter.line_segment([egui::pos2(x0, y), egui::pos2(x1, y)], stroke);
 }
 
 /// Maximize: a hollow rectangle.
 fn maximize_icon(painter: &egui::Painter, rect: Rect, stroke: Stroke) {
-    let half = 7.0;
+    let half = ICON_HALF;
     let center = rect.center();
     let r = Rect::from_center_size(center, Vec2::new(half * 2.0, half * 2.0));
     painter.rect_stroke(r, 0.0, stroke);
@@ -183,14 +186,13 @@ fn maximize_icon(painter: &egui::Painter, rect: Rect, stroke: Stroke) {
 /// Restore (shown while maximized): two overlapping rectangles.
 fn restore_icon(painter: &egui::Painter, rect: Rect, stroke: Stroke) {
     let center = rect.center();
-    let w = 12.0;
-    let h = 12.0;
-    let front_rect = Rect::from_center_size(center, Vec2::new(w, h));
+    let half = ICON_HALF - 1.0;
+    let front_rect = Rect::from_center_size(center, Vec2::new(half * 2.0, half * 2.0));
     painter.rect_stroke(front_rect, 0.0, stroke);
 
     let back_rect = Rect::from_min_max(
-        egui::pos2(front_rect.min.x - 3.0, front_rect.min.y - 3.0),
-        egui::pos2(front_rect.max.x - 3.0, front_rect.max.y - 3.0),
+        egui::pos2(front_rect.min.x - 2.0, front_rect.min.y - 2.0),
+        egui::pos2(front_rect.max.x - 2.0, front_rect.max.y - 2.0),
     );
     painter.rect_stroke(back_rect, 0.0, stroke);
 }
@@ -198,7 +200,7 @@ fn restore_icon(painter: &egui::Painter, rect: Rect, stroke: Stroke) {
 /// Close: two crossing diagonal lines.
 fn close_icon(painter: &egui::Painter, rect: Rect, stroke: Stroke) {
     let center = rect.center();
-    let d = 7.0;
+    let d = ICON_HALF;
     painter.line_segment(
         [egui::pos2(center.x - d, center.y - d), egui::pos2(center.x + d, center.y + d)],
         stroke,
