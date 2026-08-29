@@ -21,43 +21,51 @@ class VisualizerModeBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Mode Switcher Segmented Control
-          Container(
-            padding: const EdgeInsets.all(4.0),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12.0),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              children: VisualizerMode.values.map((mode) {
-                final bool isSelected = mode == currentMode;
-                return GestureDetector(
-                  onTap: () => onModeChanged(mode),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
-                    decoration: BoxDecoration(
-                      color: isSelected ? currentTheme.primary : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    child: Text(
-                      mode.title,
-                      style: TextStyle(
-                        color: isSelected ? Colors.black : Colors.white70,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        fontSize: 12.0,
+          // Flexible Segmented Mode Switcher
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(3.0),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12.0),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: VisualizerMode.values.map((mode) {
+                  final bool isSelected = mode == currentMode;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => onModeChanged(mode),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(vertical: 7.0),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: isSelected ? currentTheme.primary : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                        child: Text(
+                          mode.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: isSelected ? Colors.black : Colors.white70,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontSize: 11.5,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
           ),
+
+          const SizedBox(width: 8.0),
 
           // Action Buttons: Export Video & Palette Picker
           Row(
@@ -65,13 +73,19 @@ class VisualizerModeBar extends StatelessWidget {
             children: [
               if (onExport != null)
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(6.0),
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                   onPressed: onExport,
-                  icon: Icon(Icons.movie_creation_outlined, color: currentTheme.primary),
+                  icon: Icon(Icons.movie_creation_outlined, color: currentTheme.primary, size: 20),
                   tooltip: 'Export Visualizer Video',
                 ),
               IconButton(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.all(6.0),
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                 onPressed: () => _showThemePicker(context),
-                icon: Icon(Icons.palette_rounded, color: currentTheme.primary),
+                icon: Icon(Icons.palette_rounded, color: currentTheme.primary, size: 20),
                 tooltip: 'Change Color Palette',
               ),
             ],
