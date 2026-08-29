@@ -232,10 +232,12 @@ fn write_audio_data_f32(
 
     let vol = volume_arc.lock().map(|v| *v).unwrap_or(1.0);
     let total_frames = track.samples.len() / 2;
-    let mut current_frame = frame_atomic.load(Ordering::Relaxed);
+    let initial_frame = frame_atomic.load(Ordering::Relaxed);
     let sample_ratio = track_sr / device_sr;
+    let mut frame_accum = initial_frame as f64;
 
     for frame_chunk in output.chunks_mut(device_channels) {
+        let current_frame = frame_accum as usize;
         if current_frame >= total_frames {
             playing_atomic.store(false, Ordering::Release);
             for s in frame_chunk.iter_mut() {
@@ -263,14 +265,10 @@ fn write_audio_data_f32(
             }
         }
 
-        if sample_ratio == 1.0 {
-            current_frame += 1;
-        } else {
-            current_frame = (current_frame as f64 + sample_ratio) as usize;
-        }
+        frame_accum += sample_ratio;
     }
 
-    frame_atomic.store(current_frame, Ordering::Release);
+    frame_atomic.store(frame_accum as usize, Ordering::Release);
 }
 
 fn write_audio_data_i16(
@@ -291,10 +289,12 @@ fn write_audio_data_i16(
 
     let vol = volume_arc.lock().map(|v| *v).unwrap_or(1.0);
     let total_frames = track.samples.len() / 2;
-    let mut current_frame = frame_atomic.load(Ordering::Relaxed);
+    let initial_frame = frame_atomic.load(Ordering::Relaxed);
     let sample_ratio = track_sr / device_sr;
+    let mut frame_accum = initial_frame as f64;
 
     for frame_chunk in output.chunks_mut(device_channels) {
+        let current_frame = frame_accum as usize;
         if current_frame >= total_frames {
             playing_atomic.store(false, Ordering::Release);
             for s in frame_chunk.iter_mut() {
@@ -321,14 +321,10 @@ fn write_audio_data_i16(
             }
         }
 
-        if sample_ratio == 1.0 {
-            current_frame += 1;
-        } else {
-            current_frame = (current_frame as f64 + sample_ratio) as usize;
-        }
+        frame_accum += sample_ratio;
     }
 
-    frame_atomic.store(current_frame, Ordering::Release);
+    frame_atomic.store(frame_accum as usize, Ordering::Release);
 }
 
 fn write_audio_data_u16(
@@ -349,10 +345,12 @@ fn write_audio_data_u16(
 
     let vol = volume_arc.lock().map(|v| *v).unwrap_or(1.0);
     let total_frames = track.samples.len() / 2;
-    let mut current_frame = frame_atomic.load(Ordering::Relaxed);
+    let initial_frame = frame_atomic.load(Ordering::Relaxed);
     let sample_ratio = track_sr / device_sr;
+    let mut frame_accum = initial_frame as f64;
 
     for frame_chunk in output.chunks_mut(device_channels) {
+        let current_frame = frame_accum as usize;
         if current_frame >= total_frames {
             playing_atomic.store(false, Ordering::Release);
             for s in frame_chunk.iter_mut() {
@@ -381,12 +379,8 @@ fn write_audio_data_u16(
             }
         }
 
-        if sample_ratio == 1.0 {
-            current_frame += 1;
-        } else {
-            current_frame = (current_frame as f64 + sample_ratio) as usize;
-        }
+        frame_accum += sample_ratio;
     }
 
-    frame_atomic.store(current_frame, Ordering::Release);
+    frame_atomic.store(frame_accum as usize, Ordering::Release);
 }

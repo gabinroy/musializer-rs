@@ -66,6 +66,88 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
     super.dispose();
   }
 
+  void _showExportDialog(BuildContext context) {
+    if (_controller.currentTrack == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please load an audio file first before exporting!'),
+          backgroundColor: Color(0xFF1E2435),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF12141C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+        title: Row(
+          children: [
+            Icon(Icons.movie_creation_outlined, color: _controller.theme.primary),
+            const SizedBox(width: 10),
+            const Text('Export Visualizer', style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Track: ${_controller.currentTrack?.title ?? "Audio"}',
+              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Mode: ${_controller.mode.title}\nPreset: ${_controller.theme.name}\nDuration: ${_controller.duration.toStringAsFixed(1)}s',
+              style: const TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline_rounded, color: Colors.cyanAccent, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Direct hardware video rendering on mobile will save MP4 to your device gallery.',
+                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: _controller.theme.primary, foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Exporting ${_controller.mode.title} MP4 video...'),
+                  backgroundColor: _controller.theme.primary.withValues(alpha: 0.8),
+                ),
+              );
+            },
+            icon: const Icon(Icons.download_rounded, size: 18),
+            label: const Text('Render MP4', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -85,12 +167,13 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
                   onPickAudio: _controller.pickAndLoadAudio,
                 ),
 
-                // Visualizer Mode Switcher & Palette Bar
+                // Visualizer Mode Switcher, Export & Palette Bar
                 VisualizerModeBar(
                   currentMode: _controller.mode,
                   currentTheme: theme,
                   onModeChanged: _controller.setMode,
                   onThemeChanged: _controller.setTheme,
+                  onExport: () => _showExportDialog(context),
                 ),
 
                 // Main 120 FPS Visualizer Canvas

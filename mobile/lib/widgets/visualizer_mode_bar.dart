@@ -7,6 +7,7 @@ class VisualizerModeBar extends StatelessWidget {
   final VisualizerTheme currentTheme;
   final ValueChanged<VisualizerMode> onModeChanged;
   final ValueChanged<VisualizerTheme> onThemeChanged;
+  final VoidCallback? onExport;
 
   const VisualizerModeBar({
     super.key,
@@ -14,6 +15,7 @@ class VisualizerModeBar extends StatelessWidget {
     required this.currentTheme,
     required this.onModeChanged,
     required this.onThemeChanged,
+    this.onExport,
   });
 
   @override
@@ -57,11 +59,22 @@ class VisualizerModeBar extends StatelessWidget {
             ),
           ),
 
-          // Palette Picker Icon Button
-          IconButton(
-            onPressed: () => _showThemePicker(context),
-            icon: Icon(Icons.palette_rounded, color: currentTheme.primary),
-            tooltip: 'Change Color Palette',
+          // Action Buttons: Export Video & Palette Picker
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (onExport != null)
+                IconButton(
+                  onPressed: onExport,
+                  icon: Icon(Icons.movie_creation_outlined, color: currentTheme.primary),
+                  tooltip: 'Export Visualizer Video',
+                ),
+              IconButton(
+                onPressed: () => _showThemePicker(context),
+                icon: Icon(Icons.palette_rounded, color: currentTheme.primary),
+                tooltip: 'Change Color Palette',
+              ),
+            ],
           ),
         ],
       ),
