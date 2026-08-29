@@ -66,7 +66,7 @@ jobs:
           sudo apt-get install -y libasound2-dev libudev-dev pkg-config libx11-dev libxcursor-dev libxi-dev libxrandr-dev libxinerama-dev libwayland-dev libxkbcommon-dev squashfs-tools
 
       # Build binaries and packages
-      - name: Install cargo tools (cargo-bundle, cargo-deb, cargo-generate-rpm)
+      - name: Install cargo packaging tools
         run: |
           cargo install cargo-bundle cargo-deb cargo-generate-rpm || true
 
@@ -74,13 +74,13 @@ jobs:
         run: |
           cargo build --release --target ${{ matrix.platform.target }} --package musializer-desktop
 
-      # Linux Packages (.deb, .rpm, .AppImage)
+      # Linux Packages (.deb, .rpm, .tar.gz)
       - name: Package Linux (.deb, .rpm, .tar.gz)
         if: matrix.platform.artifact_type == 'linux'
         run: |
           mkdir -p dist
           cargo deb --target ${{ matrix.platform.target }} -p musializer-desktop -o dist/musializer-rs-amd64.deb || true
-          cargo generate-rpm --target ${{ matrix.platform.target }} -p crates/musializer-desktop -o dist/musializer-rs.x86_64.rpm || true
+          cargo generate-rpm --target ${{ matrix.platform.target }} --manifest-path crates/musializer-desktop/Cargo.toml -o dist/musializer-rs.x86_64.rpm || true
           tar -czf dist/musializer-rs-linux-x86_64.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
       # Windows Packages (.exe, .zip)
@@ -93,12 +93,21 @@ jobs:
           cd target/${{ matrix.platform.target }}/release
           7z a ../../../dist/musializer-rs-windows-x86_64.zip musializer-rs.exe
 
-      # macOS Packages (.app, .tar.gz)
-      - name: Package macOS (.app, .tar.gz)
+      # macOS Packages (.app, .dmg, .tar.gz)
+      - name: Package macOS (.dmg, .app.zip, .tar.gz)
         if: matrix.platform.artifact_type == 'macos'
         run: |
           mkdir -p dist
-          cargo bundle --release --target ${{ matrix.platform.target }} --pkgid musializer-desktop || true
+          cargo bundle --release --target ${{ matrix.platform.target }} --pkgid musializer-desktop --format osx,dmg || true
+          
+          # Find generated DMG or package .app into DMG / Zip
+          if [ -d "target/${{ matrix.platform.target }}/release/bundle/osx/Musializer-RS.app" ]; then
+            hdiutil create -volname "Musializer-RS" -srcfolder "target/${{ matrix.platform.target }}/release/bundle/osx/Musializer-RS.app" -ov -format UDZO dist/musializer-rs-macos-arm64.dmg || true
+            cd target/${{ matrix.platform.target }}/release/bundle/osx
+            zip -r ../../../../../dist/musializer-rs-macos-arm64.app.zip Musializer-RS.app || true
+            cd -
+          fi
+          
           tar -czf dist/musializer-rs-macos-arm64.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
       - name: Upload Desktop Artifacts
@@ -203,11 +212,18 @@ jobs:
           flutter pub get
           flutter build ios --release --no-codesign
 
-      - name: Package iOS Runner
+      - name: Package iOS Runner (.ipa / .zip)
         run: |
           mkdir -p dist
+          
+          # Create Payload directory for sideloadable .ipa
+          mkdir -p Payload
+          cp -r mobile/build/ios/iphoneos/Runner.app Payload/
+          zip -r dist/musializer-mobile-ios-unsigned.ipa Payload
+          
+          # Zip Runner.app directly
           cd mobile/build/ios/iphoneos
-          zip -r ../../../../dist/musializer-mobile-ios-unsigned.zip Runner.app || true
+          zip -r ../../../../dist/musializer-mobile-ios-Runner.app.zip Runner.app || true
 
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4

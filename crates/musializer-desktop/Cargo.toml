@@ -3,10 +3,38 @@ name = "musializer-desktop"
 version = "1.0.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
+description = "High-Performance GPU-Accelerated Audio Visualizer in Rust"
+homepage = "https://github.com/gabinroy/musializer-rs"
+repository = "https://github.com/gabinroy/musializer-rs"
 
 [[bin]]
 name = "musializer-rs"
 path = "src/main.rs"
+
+[package.metadata.rpm]
+package = "musializer-rs"
+
+[package.metadata.rpm.files]
+"../../assets/icon.png" = { path = "/usr/share/icons/hicolor/256x256/apps/musializer-rs.png" }
+"../../distribution/org.musializer.MusializerRS.desktop" = { path = "/usr/share/applications/musializer-rs.desktop" }
+
+[package.metadata.deb]
+name = "musializer-rs"
+maintainer = "G Abin Roy <gabinroy@users.noreply.github.com>"
+assets = [
+    ["target/x86_64-unknown-linux-gnu/release/musializer-rs", "usr/bin/", "755"],
+    ["../../assets/icon.png", "usr/share/icons/hicolor/256x256/apps/musializer-rs.png", "644"],
+    ["../../distribution/org.musializer.MusializerRS.desktop", "usr/share/applications/musializer-rs.desktop", "644"],
+]
+
+[package.metadata.bundle]
+name = "Musializer-RS"
+identifier = "org.musializer.MusializerRS"
+icon = ["../../assets/icon.png"]
+version = "1.0.0"
+copyright = "Copyright (c) 2026 G Abin Roy"
+category = "Music"
+short_description = "High-Performance Audio Visualizer"
 
 [dependencies]
 musializer-core = { path = "../musializer-core" }
