@@ -21,9 +21,23 @@ subprojects {
 }
 
 subprojects {
-    gradle.projectsEvaluated {
-        tasks.matching { it.name.contains("AarMetadata") }.configureEach {
-            enabled = false
+    project.configurations.all {
+        resolutionStrategy {
+            force("androidx.fragment:fragment:1.5.7")
+            force("androidx.core:core-ktx:1.10.1")
+            force("androidx.core:core:1.10.1")
+            force("androidx.activity:activity:1.7.2")
+            force("androidx.lifecycle:lifecycle-runtime:2.6.1")
+            force("androidx.lifecycle:lifecycle-livedata:2.6.1")
+            force("androidx.lifecycle:lifecycle-livedata-core:2.6.1")
+            force("androidx.lifecycle:lifecycle-livedata-core-ktx:2.6.1")
+            force("androidx.lifecycle:lifecycle-viewmodel:2.6.1")
+            force("androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1")
+            force("androidx.lifecycle:lifecycle-process:2.6.1")
+            force("androidx.window:window:1.0.0")
+            force("androidx.window:window-java:1.0.0")
+            force("androidx.annotation:annotation-experimental:1.3.0")
+            force("androidx.exifinterface:exifinterface:1.3.6")
         }
     }
 }
