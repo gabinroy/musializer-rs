@@ -10,6 +10,7 @@ import 'src/rust/frb_generated.dart';
 import 'state/visualizer_controller.dart';
 import 'widgets/playback_controls.dart';
 import 'widgets/track_header.dart';
+import 'widgets/update_dialog.dart';
 import 'widgets/visualizer_mode_bar.dart';
 
 Future<void> main() async {
@@ -61,6 +62,11 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> with Widget
     WidgetsBinding.instance.addObserver(this);
     _controller = VisualizerController();
     _controller.init();
+
+    // Check for app updates automatically on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateDialog.showIfAvailable(context, _controller.theme);
+    });
   }
 
   @override
@@ -430,7 +436,7 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
                     child: Row(
                       children: [
                         const Icon(Icons.folder_open_rounded, color: Colors.greenAccent, size: 20),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _savedFilePath!,
