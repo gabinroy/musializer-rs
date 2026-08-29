@@ -176,7 +176,7 @@ class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
           currentTime: _controller.currentTime,
           duration: _controller.duration,
           trackTitle: _controller.currentTrack?.title,
-          coverImage: _controller.coverImage,
+          coverImage: _controller.coverImage ?? _controller.defaultLogoImage,
         );
       case VisualizerMode.waveform:
         return WaveformPainter(

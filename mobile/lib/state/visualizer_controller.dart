@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import '../models/circle_center_display.dart';
 import '../models/visualizer_mode.dart';
 import '../models/visualizer_theme.dart';
@@ -28,6 +29,9 @@ class VisualizerController extends ChangeNotifier {
 
   ui.Image? _coverImage;
   ui.Image? get coverImage => _coverImage;
+
+  ui.Image? _defaultLogoImage;
+  ui.Image? get defaultLogoImage => _defaultLogoImage;
 
   rust_api.MobileTrackInfo? _currentTrack;
   rust_api.MobileTrackInfo? get currentTrack => _currentTrack;
@@ -66,11 +70,26 @@ class VisualizerController extends ChangeNotifier {
       );
       _initialized = true;
 
+      // Load app logo as default cover fallback
+      await _loadDefaultLogo();
+
       _ticker = Ticker(_onTick);
       _ticker?.start();
       notifyListeners();
     } catch (e) {
       debugPrint('Error initializing Rust engine: $e');
+    }
+  }
+
+  Future<void> _loadDefaultLogo() async {
+    try {
+      final byteData = await rootBundle.load('assets/icon.png');
+      final bytes = byteData.buffer.asUint8List();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      _defaultLogoImage = frame.image;
+    } catch (e) {
+      debugPrint('Error loading default logo asset: $e');
     }
   }
 
