@@ -1,130 +1,124 @@
-# Musializer-RS 🎵
+# Musializer-RS
 
 <p align="center">
-  <img src="assets/icon.jpg" alt="Musializer-RS Icon" width="160" style="border-radius: 24px;" />
+  <img src="assets/icon.png" width="128" height="128" alt="Musializer-RS Icon" />
 </p>
 
 <p align="center">
-  <strong>A high-performance, GPU-accelerated audio visualizer written in Rust.</strong><br>
-  <em>Inspired by <a href="https://github.com/tsoding/musializer">tsoding/musializer</a>.</em>
+  <strong>High-Performance, Real-Time Audio Visualizer</strong><br>
+  Built with <strong>Rust</strong>, <strong>egui</strong> (Desktop), and <strong>Flutter</strong> (Mobile).
 </p>
 
-Musializer-RS brings native GPU-accelerated rendering, real-time Fourier analysis (DSP), multi-format audio playback, and deterministic 60 FPS video export for **Desktop (Linux, Windows, and macOS)**.
-
 ---
 
-## 🌟 Key Features
+## 🏛️ Project Architecture (Multi-Crate Workspace)
 
-- 🖥️ **Stable Desktop Support**: Native 60+ FPS playback and rendering on Linux (Wayland/X11), Windows (WASAPI/DirectX), and macOS (CoreAudio/Metal).
-- 🎵 **Multi-Format Audio Support**: Decode and play MP3, WAV, FLAC, OGG/Vorbis, and AAC files via pure-Rust `symphonia`.
-- ⚡ **Hardware-Accelerated UI**: Built with `eframe` (egui + wgpu) for ultra-low latency, fluid animations.
-- 🧮 **Fast Fourier Transform (DSP)**:
-  - Hann windowing to eliminate spectral leakage.
-  - SIMD-accelerated FFT via `rustfft`.
-  - Logarithmic / Octave frequency band grouping (Sub-bass to Treble).
-  - Asymmetric Attack/Decay Exponential Moving Average (EMA) with peak hold dots for fluid animations.
-  - **Dynamic Range Compression & Sensitivity Boost**: Power-law scaling and adjustable `0.5x` to `3.5x` gain slider to ensure quiet intros and acoustic tracks generate rich, energetic spectrum bars.
-- 🎨 **Multiple Visualizer Modes**:
-  - **Dynamic Spectrum Bars**: Colorful gradient bars with reactive heights and floating peak caps.
-  - **Oscilloscope Waveform**: Smooth antialiased audio waveform.
-  - **Circular / Radial Pulse**: Radial frequency burst with bass pulse and customizable center hub (Custom Cover Art / Album Image, Live Elapsed Time, Remaining Time Countdown, or Song Title).
-- 🎬 **Deterministic 60 FPS Video Export**:
-  - Offline frame stepping with zero dropped frames.
-  - Automatic FFmpeg piping for direct `.mp4` video generation with muxed audio.
-- 🚀 **In-App Automated Update System**:
-  - Asynchronous background version checker via Tokio and GitHub Releases API.
-  - Non-blocking notification pill badge on the custom title bar.
-  - Interactive "Update Available" modal with markdown changelog preview.
-  - 1-Click cross-platform atomic binary replacement and app restart mechanism.
-
----
-
-## 🚧 Web & Mobile Support (Under Development)
-
-> [!NOTE]
-> **Web (WebAssembly) and Mobile (Android / iOS)** versions are currently **under active development**. 
-> 
-> Due to browser audio autoplay limitations, threading sandbox constraints, and mobile-specific background audio lifecycles, full support for Web and Mobile is undergoing a complete architectural redesign. The currently maintained and fully stable platform is the **Desktop application** (Linux, macOS, Windows).
-
----
-
-## 🐧 Linux Drag & Drop Note
-
-> [!NOTE]
-> File drag-and-drop works seamlessly on Windows, macOS, and standard Linux desktop environments (e.g., Linux Mint, Cinnamon, X11). 
-> 
-> On certain **customized Linux Wayland compositors** (such as KDE Plasma 6 / Dolphin on Arch / CachyOS), cross-window drag-and-drop data offers may occasionally fail due to upstream Wayland protocol limitations. 
-> 
-> If you encounter this:
-> - Simply click the center card or the **"📂 Open Audio File"** button to load tracks via the native system file picker.
-> - Or launch the app with the XWayland fallback flag: `cargo run --release -- --x11`.
-
----
-
-## 🏛️ Documentation
-
-- 📐 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): Detailed technical architecture, math equations, and dataflow diagrams.
-- 📦 [docs/APP_EXPORTING_COMMANDS.md](docs/APP_EXPORTING_COMMANDS.md): Full command-line reference for exporting & packaging desktop apps.
-- 🚀 [docs/PACKAGE_DISTRIBUTION_GUIDE.md](docs/PACKAGE_DISTRIBUTION_GUIDE.md): Maintainer setup for automated package distribution across AUR, Winget, Flathub, APT, and DNF.
-
----
-
-## 📦 Installation & Package Managers
-
-### 🐧 Arch Linux / CachyOS (AUR)
-```bash
-yay -S musializer-rs-bin
 ```
-
-### 🪟 Windows (Winget)
-```powershell
-winget install GabinRoy.MusializerRS
-```
-
-### ❄️ Universal Linux (Flatpak / Flathub)
-```bash
-flatpak install flathub org.musializer.MusializerRS
-```
-
-### 🎩 Fedora / RHEL (DNF via COPR)
-```bash
-sudo dnf copr enable gabinroy/musializer-rs
-sudo dnf install musializer-rs
-```
-
-### 🟣 Debian / Ubuntu / Mint (APT)
-Direct `.deb` installation:
-```bash
-sudo dpkg -i musializer-rs-*.deb || sudo apt-get install -f -y
+musializer-rs/
+├── Cargo.toml                    # Root workspace manifest
+├── build-mobile.sh               # 1-command release APK build script
+│
+├── crates/
+│   ├── musializer-core/          # Pure Rust DSP, FFT math, Symphonia audio decoding
+│   │   ├── src/
+│   │   │   ├── api.rs            # flutter_rust_bridge zero-copy interface
+│   │   │   ├── audio/            # Decoder (symphonia), Player (cpal), Sync
+│   │   │   ├── dsp/              # rustfft, Hann window, EMA smoother, log bands
+│   │   │   └── engine.rs         # Unified AudioVisualizerEngine
+│   │   ├── build-android.sh      # Android NDK build automation
+│   │   └── build-ios.sh          # iOS build automation
+│   │
+│   └── musializer-desktop/       # Existing high-performance egui / eframe desktop application
+│       └── src/
+│           ├── main.rs           # Desktop entry point
+│           ├── app.rs            # Desktop state loop
+│           ├── ui/               # egui controls, visualizer, themes
+│           ├── export/           # Video renderer & ffmpeg pipe
+│           └── updater/          # In-app GitHub release updater
+│
+└── mobile/                       # High-performance 120 FPS Flutter mobile app (Android & iOS)
+    ├── lib/
+    │   ├── main.dart             # Mobile app entry point
+    │   ├── models/               # Visualizer modes & color themes
+    │   ├── painters/             # 120 FPS CustomPainter visualizers (Bars, Radial, Waveform)
+    │   ├── state/                # VisualizerController & real-time ticker
+    │   └── widgets/              # Header, mode switcher, seek timeline, volume & gain
+    ├── android/                  # Android Gradle build & permissions
+    └── ios/                      # iOS Runner & Audio Background capabilities
 ```
 
 ---
 
-## 🚀 Quick Start (Desktop)
+## 🖥️ Running & Building the Desktop App
 
-### 1. Clone the Repository
+The desktop application is built with pure Rust, egui, and wgpu.
+
+### Run Desktop App:
 ```bash
-git clone https://github.com/gabinroy/musializer-rs.git
-cd musializer-rs
+cargo run --bin musializer-rs
 ```
 
-### 2. Run on Desktop (Linux, macOS, Windows)
+### Build Desktop Release Binary:
 ```bash
-cargo run --release
-```
-
-### 3. Build Release Binary
-```bash
-cargo build --release
+cargo build --release --package musializer-desktop
 ```
 
 ---
 
-## 🧪 Tests & Quality
-- `cargo test`: 100% tests passing.
-- `cargo check`: 0 errors, 0 warnings.
+## 📱 Running & Building the Mobile App (Android & iOS)
+
+The mobile UI is built with **Flutter** and powered by `musializer-core` via **`flutter_rust_bridge`** for 120 FPS zero-copy audio rendering.
+
+### Prerequisites:
+- **Rust** & targets:
+  ```bash
+  rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+  # For iOS (on macOS):
+  # rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+  ```
+- **Cargo Tools**: `cargo install cargo-ndk flutter_rust_bridge_codegen`
+- **Flutter SDK**: `3.7.0+`
+
+### 1-Command Android Release Build:
+```bash
+./build-mobile.sh
+```
+
+### Run on Android Device / Emulator:
+```bash
+# 1. Compile Rust core libraries for Android:
+(cd crates/musializer-core && ./build-android.sh)
+
+# 2. Run Flutter app:
+cd mobile
+flutter run
+```
+
+### Run on iOS (macOS / Xcode):
+```bash
+# 1. Compile Rust core for iOS:
+(cd crates/musializer-core && ./build-ios.sh)
+
+# 2. Run Flutter iOS app:
+cd mobile
+flutter run -d ios
+```
+
+---
+
+## 🧪 Testing & Verification
+
+Run the entire test suite across all workspace crates and the mobile app:
+
+```bash
+# Rust Workspace Unit Tests (DSP, decoding, audio sync)
+cargo test --workspace
+
+# Flutter Mobile Unit & Widget Tests
+cd mobile && flutter test && flutter analyze
+```
 
 ---
 
 ## 📄 License
-This project is licensed under the **GNU General Public License v3.0** ([GPLv3](LICENSE)).
+This project is licensed under the GPL-3.0-or-later License.
