@@ -68,81 +68,52 @@ jobs:
       # Build binaries and packages
       - name: Install cargo tools (cargo-bundle, cargo-deb, cargo-generate-rpm)
         run: |
-          cargo install cargo-bundle
-          if [ "${{ matrix.platform.artifact_type }}" = "linux" ]; then
-            cargo install cargo-deb
-            cargo install cargo-generate-rpm
-          fi
-        shell: bash
+          cargo install cargo-bundle cargo-deb cargo-generate-rpm || true
 
-      # Linux & macOS bundling
-      - name: Build and Bundle (Linux & macOS)
-        if: matrix.platform.artifact_type != 'windows'
-        shell: bash
+      - name: Build Desktop Release
         run: |
-          cargo build --release --target ${{ matrix.platform.target }}
-          cargo bundle --release --target ${{ matrix.platform.target }}
+          cargo build --release --target ${{ matrix.platform.target }} --package musializer-desktop
 
-      # Windows: build release binary (and optional bundle without failing)
-      - name: Build Release (Windows)
-        if: matrix.platform.artifact_type == 'windows'
-        shell: bash
-        run: |
-          cargo build --release --target ${{ matrix.platform.target }}
-          cargo bundle --release --target ${{ matrix.platform.target }} || true
-
-      # Prepare artifacts for upload
-      - name: Package Linux Artifacts (.deb, .rpm, .AppImage, .tar.gz)
+      # Linux Packages (.deb, .rpm, .AppImage)
+      - name: Package Linux (.deb, .rpm, .tar.gz)
         if: matrix.platform.artifact_type == 'linux'
-        shell: bash
         run: |
           mkdir -p dist
-          cargo deb --target ${{ matrix.platform.target }} --no-build -o dist/ || true
-          cargo generate-rpm --target ${{ matrix.platform.target }} -o dist/ || true
-          find target/${{ matrix.platform.target }}/release/bundle/ -name "*.AppImage" -exec cp {} dist/ \; || true
-          find target/${{ matrix.platform.target }}/release/bundle/ -name "*.deb" -exec cp {} dist/ \; || true
-          tar -czf dist/musializer-rs-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
+          cargo deb --target ${{ matrix.platform.target }} -p musializer-desktop -o dist/musializer-rs-amd64.deb || true
+          cargo generate-rpm --target ${{ matrix.platform.target }} -p crates/musializer-desktop -o dist/musializer-rs.x86_64.rpm || true
+          tar -czf dist/musializer-rs-linux-x86_64.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
-      - name: Package Windows Artifacts
+      # Windows Packages (.exe, .zip)
+      - name: Package Windows (.zip)
         if: matrix.platform.artifact_type == 'windows'
         shell: bash
         run: |
           mkdir -p dist
-          find target/${{ matrix.platform.target }}/release/bundle/ -name "*.msi" -exec cp {} dist/ \; || true
+          cp target/${{ matrix.platform.target }}/release/musializer-rs.exe dist/musializer-rs.exe
           cd target/${{ matrix.platform.target }}/release
-          7z a ../../../../dist/musializer-rs-${{ matrix.platform.target }}.zip musializer-rs.exe
+          7z a ../../../dist/musializer-rs-windows-x86_64.zip musializer-rs.exe
 
-      - name: Package macOS Artifacts
+      # macOS Packages (.app, .tar.gz)
+      - name: Package macOS (.app, .tar.gz)
         if: matrix.platform.artifact_type == 'macos'
-        shell: bash
         run: |
           mkdir -p dist
-          if [ -d "target/${{ matrix.platform.target }}/release/bundle/osx" ]; then
-            cd target/${{ matrix.platform.target }}/release/bundle/osx
-            zip -r ../../../../../dist/musializer-rs-${{ matrix.platform.target }}.app.zip *.app || true
-            APP_NAME=$(find . -maxdepth 1 -name "*.app" | head -n 1)
-            if [ -n "$APP_NAME" ]; then
-              npm install --global create-dmg || true
-              create-dmg "$APP_NAME" ../../../../../dist/ --overwrite || hdiutil create -volname "Musializer-RS" -srcfolder "$APP_NAME" -ov -format UDZO ../../../../../dist/musializer-rs-${{ matrix.platform.target }}.dmg || true
-              find . -maxdepth 1 -name "*.dmg" -exec cp {} ../../../../../dist/ \; || true
-            fi
-            cd -
-          fi
-          tar -czf dist/musializer-rs-${{ matrix.platform.target }}.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
+          cargo bundle --release --target ${{ matrix.platform.target }} --pkgid musializer-desktop || true
+          tar -czf dist/musializer-rs-macos-arm64.tar.gz -C target/${{ matrix.platform.target }}/release musializer-rs
 
-      - name: Upload Artifacts
+      - name: Upload Desktop Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.platform.target }}
+          name: artifacts-${{ matrix.platform.artifact_type }}
           path: dist/*
           if-no-files-found: error
 
   # -------------------------------------------------------------------------
-  # 2. Mobile Android Build (Universal & Split APKs)
+  # 2. Mobile Android Build (APK Universal & Split-ABI)
   # -------------------------------------------------------------------------
   build-android:
-    name: Build Mobile (Android APK)
-    runs-on: ubuntu-22.04
+    name: Build Mobile (Android APKs)
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -179,15 +150,17 @@ jobs:
           cd crates/musializer-core
           ./build-android.sh
 
-      - name: Build Android Release APK
+      - name: Build Android Release APK (Universal & Split ABI)
         run: |
           cd mobile
           flutter pub get
+          flutter build apk --release
           flutter build apk --release --split-per-abi
 
       - name: Package Android APKs
         run: |
           mkdir -p dist
+          cp mobile/build/app/outputs/flutter-apk/app-release.apk dist/musializer-mobile-universal.apk || true
           cp mobile/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk dist/musializer-mobile-arm64-v8a.apk || true
           cp mobile/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk dist/musializer-mobile-armeabi-v7a.apk || true
           cp mobile/build/app/outputs/flutter-apk/app-x86_64-release.apk dist/musializer-mobile-x86_64.apk || true
