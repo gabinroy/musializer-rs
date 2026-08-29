@@ -36,6 +36,9 @@ class VisualizerController extends ChangeNotifier {
   rust_api.MobileTrackInfo? _currentTrack;
   rust_api.MobileTrackInfo? get currentTrack => _currentTrack;
 
+  String? _currentAudioPath;
+  String? get currentAudioPath => _currentAudioPath;
+
   bool _isPlaying = false;
   bool get isPlaying => _isPlaying;
 
@@ -142,6 +145,7 @@ class VisualizerController extends ChangeNotifier {
         if (path != null) {
           final track = await rust_api.loadAudioFile(path: path);
           _currentTrack = track;
+          _currentAudioPath = path;
           _duration = track.durationSeconds;
           _currentTime = 0.0;
           _isPlaying = true;
@@ -152,6 +156,18 @@ class VisualizerController extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error loading audio file: $e');
     }
+  }
+
+  Future<void> play() async {
+    await rust_api.play();
+    _isPlaying = true;
+    notifyListeners();
+  }
+
+  Future<void> pause() async {
+    await rust_api.pause();
+    _isPlaying = false;
+    notifyListeners();
   }
 
   Future<void> togglePlayPause() async {

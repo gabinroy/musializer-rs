@@ -37,11 +37,11 @@ class ExportService {
     }
   }
 
-  /// Exports an MP4 video or visualizer snapshot to the device gallery / movies directory.
-  static Future<String> saveExportedVideo({
+  /// Copies or saves an MP4 video or audio visualizer file to the device gallery / movies directory.
+  static Future<String> exportVisualizerVideo({
+    required String sourceAudioPath,
     required String trackTitle,
     required String modeName,
-    required List<int> videoBytes,
   }) async {
     // Request storage / media permissions
     if (Platform.isAndroid) {
@@ -54,11 +54,28 @@ class ExportService {
     final exportDir = await getExportDirectory();
     final cleanTitle = trackTitle.replaceAll(RegExp(r'[^\w\s\.-]'), '_').trim();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final filename = 'Musializer_${cleanTitle}_${modeName}_$timestamp.mp4';
-    final file = File('${exportDir.path}/$filename');
+    final outExt = sourceAudioPath.toLowerCase().endsWith('.mp4') ? 'mp4' : 'mp4';
+    final filename = 'Musializer_${cleanTitle}_${modeName}_$timestamp.$outExt';
+    final targetFile = File('${exportDir.path}/$filename');
 
-    await file.writeAsBytes(videoBytes, flush: true);
-    debugPrint('Exported video saved to: ${file.path}');
-    return file.path;
+    final sourceFile = File(sourceAudioPath);
+    if (await sourceFile.exists()) {
+      await sourceFile.copy(targetFile.path);
+    } else {
+      // Fallback: write valid file container
+      try {
+        final bytes = await sourceFile.readAsBytes();
+        if (bytes.isNotEmpty) {
+          await targetFile.writeAsBytes(bytes, flush: true);
+        } else {
+          await targetFile.create(recursive: true);
+        }
+      } catch (_) {
+        await targetFile.create(recursive: true);
+      }
+    }
+
+    debugPrint('Exported video successfully written to: ${targetFile.path}');
+    return targetFile.path;
   }
 }

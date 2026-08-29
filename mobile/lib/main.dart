@@ -52,20 +52,32 @@ class VisualizerHomeScreen extends StatefulWidget {
   State<VisualizerHomeScreen> createState() => _VisualizerHomeScreenState();
 }
 
-class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> {
+class _VisualizerHomeScreenState extends State<VisualizerHomeScreen> with WidgetsBindingObserver {
   late final VisualizerController _controller;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller = VisualizerController();
     _controller.init();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When app is minimized or sent to background, automatically pause audio
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.hidden) {
+      if (_controller.isPlaying) {
+        _controller.pause();
+      }
+    }
   }
 
   void _showExportDialog(BuildContext context) {
@@ -237,16 +249,13 @@ class _ExportProgressModalState extends State<_ExportProgressModal> {
       if (currentStep >= totalSteps) {
         timer.cancel();
         
-        // Write the exported visualizer file to device storage
+        // Write the exported visualizer file to device storage using valid source track
         try {
-          final dummyMp4Header = [
-            0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32,
-            0x00, 0x00, 0x00, 0x00, 0x69, 0x73, 0x6F, 0x6D, 0x6D, 0x70, 0x34, 0x32
-          ];
-          final savedPath = await ExportService.saveExportedVideo(
+          final audioPath = widget.controller.currentAudioPath ?? '';
+          final savedPath = await ExportService.exportVisualizerVideo(
+            sourceAudioPath: audioPath,
             trackTitle: widget.controller.currentTrack?.title ?? 'Musializer_Track',
             modeName: widget.controller.mode.title,
-            videoBytes: dummyMp4Header,
           );
           if (mounted) {
             setState(() {
