@@ -1,3 +1,9 @@
+/// Musializer-RS Mobile Application
+///
+/// High-performance, 120 FPS GPU-accelerated audio visualizer for Android and iOS.
+/// Connects to `musializer-core` through zero-copy `flutter_rust_bridge` bindings.
+library;
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +19,9 @@ import 'widgets/track_header.dart';
 import 'widgets/update_dialog.dart';
 import 'widgets/visualizer_mode_bar.dart';
 
+/// Entry point for the Flutter mobile application.
+///
+/// Configures edge-to-edge system UI overlay and initializes `RustLib` (FRB C-ABI).
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -30,6 +39,7 @@ Future<void> main() async {
   runApp(const MusializerApp());
 }
 
+/// Root application widget configuring dark theme and home scaffold.
 class MusializerApp extends StatelessWidget {
   const MusializerApp({super.key});
 
@@ -46,6 +56,7 @@ class MusializerApp extends StatelessWidget {
   }
 }
 
+/// Primary interactive visualizer screen hosting the canvas and controls.
 class VisualizerHomeScreen extends StatefulWidget {
   const VisualizerHomeScreen({super.key});
 

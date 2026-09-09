@@ -11,29 +11,43 @@ import '../models/visualizer_mode.dart';
 import '../models/visualizer_theme.dart';
 import '../src/rust/api.dart' as rust_api;
 
+/// Central state manager driving 120 FPS visualizer animation and audio controls.
+///
+/// Orchestrates the Flutter high-refresh [Ticker], queries real-time spectrum magnitudes
+/// across the `flutter_rust_bridge` zero-copy boundary, and notifies custom canvas painters.
 class VisualizerController extends ChangeNotifier {
+  /// Default FFT sample window size (2048 samples).
   static const int defaultFftSize = 2048;
+
+  /// Default number of logarithmic frequency bands (64 bands).
   static const int defaultNumBands = 64;
 
   bool _initialized = false;
+  /// Whether the native Rust engine has been booted and initialized.
   bool get isInitialized => _initialized;
 
   VisualizerMode _mode = VisualizerMode.spectrumBars;
+  /// Active visualizer rendering mode (Bars, Radial, or Waveform).
   VisualizerMode get mode => _mode;
 
   VisualizerTheme _theme = VisualizerTheme.presets.first;
+  /// Active color scheme and gradient theme.
   VisualizerTheme get theme => _theme;
 
   CircleCenterDisplay _circleCenterDisplay = CircleCenterDisplay.timeElapsed;
+  /// Graphic mode selected for the radial visualizer core.
   CircleCenterDisplay get circleCenterDisplay => _circleCenterDisplay;
 
   ui.Image? _coverImage;
+  /// Custom decoded cover art image.
   ui.Image? get coverImage => _coverImage;
 
   ui.Image? _defaultLogoImage;
+  /// Compile-time app logo fallback image.
   ui.Image? get defaultLogoImage => _defaultLogoImage;
 
   rust_api.MobileTrackInfo? _currentTrack;
+  /// Metadata of the currently loaded audio file.
   rust_api.MobileTrackInfo? get currentTrack => _currentTrack;
 
   String? _currentAudioPath;

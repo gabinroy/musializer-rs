@@ -1,5 +1,14 @@
+//! # Desktop Application Entrypoint
+//!
+//! Handles command-line arguments, Linux display server backend configuration (X11 vs Wayland),
+//! window viewport setup, compile-time embedded icon loading, and initiates the `eframe` event loop.
+
 use musializer_desktop::MusializerApp;
 
+/// Main executable entry point for `musializer-desktop`.
+///
+/// Parses CLI flags (`--help`, `--version`, `--x11`, `--wayland`), configures the
+/// borderless window viewport with drag-and-drop support, and boots `MusializerApp`.
 fn main() -> eframe::Result<()> {
     env_logger::init();
 
@@ -67,6 +76,7 @@ fn main() -> eframe::Result<()> {
     )
 }
 
+/// Decodes the compile-time embedded icon PNG (`assets/icon.png`) into raw RGBA bytes for the window manager.
 fn load_embedded_icon() -> Option<egui::IconData> {
     let icon_bytes = include_bytes!("../assets/icon.png");
     if let Ok(image) = image::load_from_memory(icon_bytes) {

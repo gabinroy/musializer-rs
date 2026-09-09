@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/visualizer_theme.dart';
 import '../src/rust/api.dart';
 
+/// Top branding header displaying track metadata, sample rate badge, and audio file picker button.
 class TrackHeader extends StatelessWidget {
   final MobileTrackInfo? track;
   final VisualizerTheme theme;

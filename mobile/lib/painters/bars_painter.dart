@@ -2,9 +2,18 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/visualizer_theme.dart';
 
+/// GPU canvas renderer for classic vertical frequency spectrum bars.
+///
+/// Draws rounded vertical bars with dynamic gradient shaders, bloom glow passes,
+/// and floating white peak-decay caps.
 class BarsPainter extends CustomPainter {
+  /// Real-time smoothed frequency magnitudes in range `[0.0, 1.0]`.
   final Float32List spectrum;
+
+  /// Floating peak-hold values for each bar.
   final List<double> peaks;
+
+  /// Active color and gradient theme.
   final VisualizerTheme theme;
 
   BarsPainter({
@@ -58,10 +67,12 @@ class BarsPainter extends CustomPainter {
       // Floating peak cap
       if (i < peaks.length) {
         final double peakMag = peaks[i].clamp(0.0, 1.0);
-        final double peakY = size.height - (peakMag * (size.height - 40.0)) - 4.0;
+        final double peakY = size.height - (peakMag * (size.height - 40.0)).clamp(4.0, size.height);
+        final double capHeight = 3.0;
+
         final RRect peakRRect = RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, peakY, barWidth, 3.0),
-          const Radius.circular(1.5),
+          Rect.fromLTWH(x, peakY - capHeight - 2.0, barWidth, capHeight),
+          Radius.circular(capHeight * 0.5),
         );
         canvas.drawRRect(peakRRect, peakPaint);
       }
@@ -69,5 +80,7 @@ class BarsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant BarsPainter oldDelegate) => true;
+  bool shouldRepaint(covariant BarsPainter oldDelegate) {
+    return true; // Continuously animated by ticker
+  }
 }

@@ -5,13 +5,30 @@ import 'package:flutter/material.dart';
 import '../models/circle_center_display.dart';
 import '../models/visualizer_theme.dart';
 
+/// GPU canvas renderer for 360-degree radial/circular audio visualization.
+///
+/// Projects frequency bands outward along radial polar coordinates from a central
+/// bass-reactive core, featuring custom center graphics (album cover or timestamps).
 class CircularPainter extends CustomPainter {
+  /// Real-time smoothed frequency magnitudes in range `[0.0, 1.0]`.
   final Float32List spectrum;
+
+  /// Active color and gradient theme.
   final VisualizerTheme theme;
+
+  /// Selected graphic mode rendered in the inner circle.
   final CircleCenterDisplay centerDisplay;
+
+  /// Current audio playback position in seconds.
   final double currentTime;
+
+  /// Total audio duration in seconds.
   final double duration;
+
+  /// Title of the currently playing track.
   final String? trackTitle;
+
+  /// Custom decoded cover image for center display.
   final ui.Image? coverImage;
 
   CircularPainter({

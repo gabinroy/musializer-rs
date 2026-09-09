@@ -1,9 +1,14 @@
+//! # Forward Fast Fourier Transform (FFT)
+//!
+//! Uses `rustfft` to convert time-domain PCM samples into frequency-domain complex bins,
+//! extracting normalized magnitude values for positive frequencies (0 Hz to Nyquist).
+
 use crate::dsp::window::HannWindow;
 use rustfft::num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
 use std::sync::Arc;
 
-/// High-performance FFT processor converting temporal PCM audio slices into frequency magnitude spectrums.
+/// High-performance forward FFT processor converting temporal PCM audio slices into frequency magnitude spectrums.
 pub struct FftProcessor {
     fft: Arc<dyn Fft<f32>>,
     window: HannWindow,
@@ -13,6 +18,10 @@ pub struct FftProcessor {
 }
 
 impl FftProcessor {
+    /// Creates a new FFT processor with pre-allocated scratch and complex buffers.
+    ///
+    /// # Arguments
+    /// * `size` - FFT window size in samples (must be a power of 2, e.g. 2048).
     pub fn new(size: usize) -> Self {
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(size);
@@ -30,7 +39,15 @@ impl FftProcessor {
     }
 
     /// Computes the frequency magnitude spectrum from an input chunk of PCM samples.
-    /// Returns the first `size / 2` bins (positive frequency range 0 Hz to Nyquist).
+    ///
+    /// Applies the Hann window in-place, computes the complex forward FFT,
+    /// and normalizes the positive half of the spectrum (0 Hz to Nyquist).
+    ///
+    /// # Arguments
+    /// * `pcm_samples` - Slice of raw audio samples.
+    ///
+    /// # Returns
+    /// A `Vec<f32>` containing `size / 2` linear frequency magnitude bins.
     pub fn process(&mut self, pcm_samples: &[f32]) -> Vec<f32> {
         let mut windowed = vec![0.0f32; self.size];
         let copy_len = pcm_samples.len().min(self.size);
@@ -62,6 +79,7 @@ impl FftProcessor {
         magnitudes
     }
 
+    /// Returns the configured FFT sample size.
     #[allow(dead_code)]
     pub fn size(&self) -> usize {
         self.size

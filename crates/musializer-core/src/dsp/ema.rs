@@ -1,6 +1,13 @@
+//! # Asymmetric EMA & Peak-Hold Smoother
+//!
+//! Provides [`EmaSmoother`], implementing asymmetric Exponential Moving Average smoothing
+//! coupled with a temporary peak-hold timer and graceful peak-cap falloff.
+//!
+//! - **Fast Attack**: Visual bars jump instantaneously with transient drum beats and attacks.
+//! - **Soft Decay**: Visual bars fall smoothly rather than dropping abruptly.
+//! - **Peak Hold**: A floating cap stays elevated for 200 ms before descending.
+
 /// Asymmetric Exponential Moving Average (EMA) and Peak-Hold smoother.
-/// Attack coefficient governs fast responsiveness to transients.
-/// Decay coefficient governs graceful falling speed of visual bars.
 pub struct EmaSmoother {
     values: Vec<f32>,
     peaks: Vec<f32>,
@@ -11,6 +18,12 @@ pub struct EmaSmoother {
 }
 
 impl EmaSmoother {
+    /// Creates a new `EmaSmoother` instance.
+    ///
+    /// # Arguments
+    /// * `num_bands` - Number of frequency bands.
+    /// * `attack` - Attack coefficient (transient rise speed, clamped `[0.01, 1.0]`).
+    /// * `decay` - Decay coefficient (falling speed, clamped `[0.001, 0.99]`).
     pub fn new(num_bands: usize, attack: f32, decay: f32) -> Self {
         Self {
             values: vec![0.0f32; num_bands],
@@ -22,8 +35,11 @@ impl EmaSmoother {
         }
     }
 
-    /// Updates smoothed values and peak caps with new incoming raw target values.
-    /// `dt` is delta time in seconds since last frame.
+    /// Updates smoothed values and peak caps with incoming raw frequency magnitudes.
+    ///
+    /// # Arguments
+    /// * `targets` - Slice of raw target magnitude values.
+    /// * `dt` - Elapsed frame delta time in seconds.
     pub fn update(&mut self, targets: &[f32], dt: f32) {
         if targets.len() != self.values.len() {
             self.values.resize(targets.len(), 0.0);
@@ -59,14 +75,17 @@ impl EmaSmoother {
         }
     }
 
+    /// Returns a slice of the current smoothed magnitude values.
     pub fn values(&self) -> &[f32] {
         &self.values
     }
 
+    /// Returns a slice of the current peak cap values.
     pub fn peaks(&self) -> &[f32] {
         &self.peaks
     }
 
+    /// Resets all smoothed values, peaks, and hold timers to zero.
     pub fn reset(&mut self) {
         self.values.fill(0.0);
         self.peaks.fill(0.0);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/visualizer_theme.dart';
 
+/// Audio playback control deck with seek bar, play/pause toggle, and gain/volume sliders.
 class PlaybackControls extends StatelessWidget {
   final bool isPlaying;
   final double currentTime;

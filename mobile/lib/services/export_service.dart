@@ -14,6 +14,10 @@ import '../painters/circular_painter.dart';
 import '../painters/waveform_painter.dart';
 import '../src/rust/api.dart' as rust_api;
 
+/// Service for rendering and exporting hardware-accelerated MP4 audio visualizer videos.
+///
+/// Computes exact offline FFT frames via `musializer-core`, renders each frame to a Flutter
+/// canvas bitmap, and encodes video (H.264) and audio (AAC) using hardware codecs.
 class ExportService {
   /// Resolves the user-accessible directory to store exported MP4 videos.
   static Future<Directory> getExportDirectory() async {

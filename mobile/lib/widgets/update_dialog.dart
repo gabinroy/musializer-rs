@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/visualizer_theme.dart';
 import '../services/update_service.dart';
 
+/// Modal dialog prompting the user when a new GitHub release is detected.
 class UpdateDialog extends StatefulWidget {
   final AppReleaseInfo release;
   final VisualizerTheme theme;

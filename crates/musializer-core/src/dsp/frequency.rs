@@ -1,10 +1,22 @@
-/// Maps linear FFT magnitude bins into logarithmically spaced frequency bands (human hearing range 20Hz - 20kHz).
+//! # Logarithmic Frequency Band Aggregation
+//!
+//! Maps linear FFT frequency bins into perceptually spaced logarithmic bands (20 Hz - 20 kHz),
+//! mirroring the human auditory system's sensitivity. Applies power-law dynamic range
+//! compression (gamma curve) and high-frequency treble compensation.
+
+/// Maps linear FFT magnitude bins into logarithmically spaced frequency bands.
 pub struct FrequencyBands {
     num_bands: usize,
     band_bin_ranges: Vec<(usize, usize)>,
 }
 
 impl FrequencyBands {
+    /// Creates a new logarithmic frequency band partitioner.
+    ///
+    /// # Arguments
+    /// * `num_bands` - Total number of visual output bands (e.g., 32, 64, or 128).
+    /// * `fft_size` - Sample size of the FFT window.
+    /// * `sample_rate` - Audio sample rate in Hz.
     pub fn new(num_bands: usize, fft_size: usize, sample_rate: u32) -> Self {
         let min_freq = 20.0f32;
         let max_freq = (sample_rate as f32 / 2.0).min(20000.0);
@@ -34,7 +46,18 @@ impl FrequencyBands {
         }
     }
 
-    /// Aggregates linear FFT magnitude bins into visual frequency bands with dynamic range compression and gain boost.
+    /// Aggregates linear FFT magnitude bins into visual frequency bands.
+    ///
+    /// Combines the maximum peak and average energy in each band, applies high-frequency
+    /// treble boost to compensate for natural 1/f spectral roll-off, and shapes the result
+    /// using a power-law gamma curve (`^0.55`) to lift quiet dynamics without clipping peaks.
+    ///
+    /// # Arguments
+    /// * `magnitudes` - Linear FFT magnitude bins from 0 Hz to Nyquist.
+    /// * `gain_multiplier` - User-configurable visual gain multiplier.
+    ///
+    /// # Returns
+    /// Clamped `Vec<f32>` of length `num_bands` with values in `[0.0, 1.0]`.
     pub fn aggregate(&self, magnitudes: &[f32], gain_multiplier: f32) -> Vec<f32> {
         let mut bands = vec![0.0f32; self.num_bands];
 
@@ -70,6 +93,7 @@ impl FrequencyBands {
         bands
     }
 
+    /// Returns the number of frequency bands configured.
     #[allow(dead_code)]
     pub fn num_bands(&self) -> usize {
         self.num_bands

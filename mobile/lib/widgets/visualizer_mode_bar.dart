@@ -3,6 +3,7 @@ import '../models/circle_center_display.dart';
 import '../models/visualizer_mode.dart';
 import '../models/visualizer_theme.dart';
 
+/// Interactive toolbar for switching visualizer rendering modes, theme palettes, and triggering video export.
 class VisualizerModeBar extends StatelessWidget {
   final VisualizerMode currentMode;
   final VisualizerTheme currentTheme;

@@ -140,7 +140,23 @@ cargo test --workspace
 cd mobile && flutter analyze
 ```
 
+
+---
+
+## 📚 Documentation
+
+- **[Core API Reference](docs/CORE_API_REFERENCE.md)**: In-depth technical reference for DSP pipelines, frequency mapping, audio decoding, and Rust API usage.
+- **[Architecture Guide](docs/ARCHITECTURE.md)**: Full workspace structure, multi-platform design, and data flow diagrams.
+- **[Mobile Development Guide](docs/MOBILE_DEVELOPMENT_GUIDE.md)**: Setup, NDK compilation, and iOS instructions.
+- **[App Exporting Commands](docs/APP_EXPORTING_COMMANDS.md)**: FFmpeg CLI commands and video pipeline details.
+
+To generate and view interactive Rustdoc API documentation in your browser:
+```bash
+cargo doc --workspace --no-deps --open
+```
+
 ---
 
 ## 📄 License
 This project is licensed under the GPL-3.0-or-later License.
+

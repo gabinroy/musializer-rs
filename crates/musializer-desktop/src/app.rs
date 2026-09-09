@@ -1,3 +1,8 @@
+//! # Main Desktop Application State & Event Loop
+//!
+//! Implements [`eframe::App`] for [`MusializerApp`], managing real-time audio playback,
+//! egui frame rendering, drag-and-drop file imports, video exporting modals, and GitHub updates.
+
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -17,6 +22,11 @@ use crate::ui::{
     TransportControls, VisualizerMode, VisualizerWidget, apply_theme,
 };
 
+/// The primary state container for the Musializer-RS desktop client.
+///
+/// Implements [`eframe::App`] to render UI elements on every frame, step DSP calculations,
+/// handle user interactions (audio controls, theme switcher, drag-and-drop), and manage
+/// background tasks like video export and application self-updating.
 pub struct MusializerApp {
     player: Result<AudioPlayer, String>,
     fft_processor: FftProcessor,

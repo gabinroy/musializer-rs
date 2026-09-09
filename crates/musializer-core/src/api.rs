@@ -1,3 +1,10 @@
+//! # Flutter Rust Bridge (FRB) C-ABI Interface
+//!
+//! This module exposes thread-safe, global FFI functions called directly by the Flutter
+//! mobile application via `flutter_rust_bridge`. It maintains a global [`AudioVisualizerEngine`]
+//! instance protected by a mutex and provides functions for track loading, playback controls,
+//! real-time FFT queries, and offline video rendering.
+
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 use crate::audio::sync::AudioSync;
@@ -7,17 +14,33 @@ use crate::dsp::frequency::FrequencyBands;
 use crate::engine::AudioVisualizerEngine;
 
 lazy_static! {
+    /// Thread-safe global singleton holding the active audio visualizer engine.
     static ref ENGINE: Mutex<Option<AudioVisualizerEngine>> = Mutex::new(None);
 }
 
+/// Track metadata transferred to the Flutter mobile client over FFI.
 #[derive(Debug, Clone)]
 pub struct MobileTrackInfo {
+    /// Track title or inferred filename.
     pub title: String,
+    /// Total track length in seconds.
     pub duration_seconds: f32,
+    /// Native sample rate in Hz (e.g. 44100 or 48000).
     pub sample_rate: u32,
+    /// Audio channels count (2 for stereo).
     pub channels: u16,
 }
 
+/// Initializes the global audio engine singleton.
+///
+/// Must be invoked by the Flutter application prior to any playback or analysis calls.
+///
+/// # Arguments
+/// * `fft_size` - FFT window size in samples (typically 2048).
+/// * `num_bands` - Number of visual frequency bands (typically 64).
+///
+/// # Errors
+/// Returns an error string if audio device acquisition fails.
 pub fn init_engine(fft_size: usize, num_bands: usize) -> Result<(), String> {
     let engine = AudioVisualizerEngine::new(fft_size, num_bands)?;
     let mut lock = ENGINE.lock().map_err(|e| format!("Mutex lock error: {:?}", e))?;
@@ -25,6 +48,13 @@ pub fn init_engine(fft_size: usize, num_bands: usize) -> Result<(), String> {
     Ok(())
 }
 
+/// Decodes and loads an audio file from the mobile device filesystem.
+///
+/// # Arguments
+/// * `path` - Full path to the audio file on the device.
+///
+/// # Errors
+/// Returns an error string if the engine is uninitialized or decoding fails.
 pub fn load_audio_file(path: String) -> Result<MobileTrackInfo, String> {
     let mut lock = ENGINE.lock().map_err(|e| format!("Mutex lock error: {:?}", e))?;
     let engine = lock.as_mut().ok_or_else(|| "Engine not initialized".to_string())?;
@@ -38,6 +68,14 @@ pub fn load_audio_file(path: String) -> Result<MobileTrackInfo, String> {
     })
 }
 
+/// Decodes and loads an audio track from an in-memory byte buffer (e.g. SAF / Document Picker).
+///
+/// # Arguments
+/// * `bytes` - Raw byte contents of the audio file.
+/// * `filename_hint` - Optional filename or extension to assist format identification.
+///
+/// # Errors
+/// Returns an error string if decoding fails.
 pub fn load_audio_bytes(bytes: Vec<u8>, filename_hint: Option<String>) -> Result<MobileTrackInfo, String> {
     let mut lock = ENGINE.lock().map_err(|e| format!("Mutex lock error: {:?}", e))?;
     let engine = lock.as_mut().ok_or_else(|| "Engine not initialized".to_string())?;
@@ -51,6 +89,7 @@ pub fn load_audio_bytes(bytes: Vec<u8>, filename_hint: Option<String>) -> Result
     })
 }
 
+/// Begins or resumes hardware audio playback.
 pub fn play() {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -59,6 +98,7 @@ pub fn play() {
     }
 }
 
+/// Pauses audio playback.
 pub fn pause() {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -67,6 +107,7 @@ pub fn pause() {
     }
 }
 
+/// Toggles between playback and paused states.
 pub fn toggle_play_pause() {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -75,6 +116,7 @@ pub fn toggle_play_pause() {
     }
 }
 
+/// Seeks playback to the target timestamp in seconds.
 pub fn seek_seconds(seconds: f32) {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -83,6 +125,7 @@ pub fn seek_seconds(seconds: f32) {
     }
 }
 
+/// Sets the master volume level (0.0 to 1.0+).
 pub fn set_volume(volume: f32) {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -91,6 +134,7 @@ pub fn set_volume(volume: f32) {
     }
 }
 
+/// Returns the current playback volume level.
 pub fn get_volume() -> f32 {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -100,6 +144,7 @@ pub fn get_volume() -> f32 {
     1.0
 }
 
+/// Returns `true` if playback is currently active.
 pub fn is_playing() -> bool {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -109,6 +154,7 @@ pub fn is_playing() -> bool {
     false
 }
 
+/// Returns current playback position in seconds.
 pub fn current_time() -> f32 {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -118,6 +164,7 @@ pub fn current_time() -> f32 {
     0.0
 }
 
+/// Returns total duration of the current audio track in seconds.
 pub fn duration_seconds() -> f32 {
     if let Ok(lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_ref() {
@@ -127,6 +174,7 @@ pub fn duration_seconds() -> f32 {
     0.0
 }
 
+/// Adjusts visual sensitivity gain for frequency bars.
 pub fn set_gain_multiplier(gain: f32) {
     if let Ok(mut lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_mut() {
@@ -135,6 +183,10 @@ pub fn set_gain_multiplier(gain: f32) {
     }
 }
 
+/// Retrieves the real-time smoothed frequency spectrum bars.
+///
+/// # Arguments
+/// * `dt` - Elapsed delta time in seconds since the last frame render.
 pub fn get_spectrum(dt: f32) -> Vec<f32> {
     if let Ok(mut lock) = ENGINE.lock() {
         if let Some(engine) = lock.as_mut() {
@@ -145,7 +197,17 @@ pub fn get_spectrum(dt: f32) -> Vec<f32> {
 }
 
 /// Computes the exact deterministic FFT frequency spectrum for all video frames offline.
-/// Returns flattened Float32 list with total_frames * num_bands elements.
+///
+/// Designed for offline video rendering to guarantee frame-perfect video sync without
+/// relying on real-time playback clock drift.
+///
+/// # Arguments
+/// * `fps` - Target video frame rate (e.g. 30 or 60).
+/// * `num_bands` - Number of frequency bands per frame.
+/// * `gain_multiplier` - Visual sensitivity scaling factor.
+///
+/// # Returns
+/// Flattened `Vec<f32>` containing `total_frames * num_bands` magnitude values.
 pub fn get_offline_spectrum_frames(fps: u32, num_bands: usize, gain_multiplier: f32) -> Result<Vec<f32>, String> {
     let lock = ENGINE.lock().map_err(|e| format!("Engine lock error: {:?}", e))?;
     let engine = lock.as_ref().ok_or_else(|| "Engine not initialized".to_string())?;
@@ -175,7 +237,9 @@ pub fn get_offline_spectrum_frames(fps: u32, num_bands: usize, gain_multiplier: 
     Ok(result)
 }
 
-/// Extracts 16-bit signed PCM audio bytes for offline video export (stereo, 44100Hz)
+/// Extracts 16-bit signed little-endian PCM audio bytes for offline video export (stereo, 44100Hz).
+///
+/// Used by the mobile video exporter to mux audio into the final MP4 container.
 pub fn get_offline_audio_pcm() -> Result<Vec<u8>, String> {
     let lock = ENGINE.lock().map_err(|e| format!("Engine lock error: {:?}", e))?;
     let engine = lock.as_ref().ok_or_else(|| "Engine not initialized".to_string())?;

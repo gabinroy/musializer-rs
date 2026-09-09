@@ -1,3 +1,9 @@
+//! # Multi-Codec Audio Decoder
+//!
+//! Uses the pure-Rust `symphonia` library to decode audio files and byte streams
+//! into in-memory, normalized 32-bit floating-point interleaved stereo PCM buffers (`[-1.0, 1.0]`).
+//! Supported codecs include MP3, WAV, FLAC, OGG/Vorbis, and AAC.
+
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use symphonia::core::audio::SampleBuffer;
@@ -8,22 +14,36 @@ use symphonia::core::io::{MediaSource, MediaSourceStream};
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
+/// An in-memory decoded audio track represented as interleaved 32-bit float stereo PCM.
 #[derive(Clone)]
 pub struct AudioTrack {
-    /// Interleaved stereo f32 samples in range [-1.0, 1.0]
+    /// Interleaved stereo f32 PCM samples in the range `[-1.0, 1.0]`.
+    /// Left channel at even indices, right channel at odd indices.
     pub samples: Vec<f32>,
+    /// Sampling frequency in Hz (e.g., 44100 or 48000).
     pub sample_rate: u32,
+    /// Number of audio channels (always normalized to 2 for stereo output).
     #[allow(dead_code)]
     pub channels: u16,
+    /// Total number of individual float samples (`total_frames * 2`).
     #[allow(dead_code)]
     pub total_samples: usize,
+    /// Total track duration in seconds.
     pub duration_seconds: f32,
+    /// Filesystem path of the original audio file, if loaded from disk.
     pub file_path: Option<PathBuf>,
+    /// Display title for the audio track.
     pub title: String,
 }
 
 impl AudioTrack {
-    /// Decodes an audio file at the given path into memory as normalized stereo f32 PCM samples.
+    /// Decodes an audio file at the specified filesystem path into memory.
+    ///
+    /// # Arguments
+    /// * `path` - Path to the audio file on disk.
+    ///
+    /// # Errors
+    /// Returns `Err(String)` if file I/O fails or the format is unsupported.
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let path_buf = path.as_ref().to_path_buf();
         let file = std::fs::File::open(&path_buf)
@@ -46,7 +66,14 @@ impl AudioTrack {
         Ok(track)
     }
 
-    /// Decodes audio data from an in-memory byte buffer
+    /// Decodes audio data from an in-memory byte buffer.
+    ///
+    /// # Arguments
+    /// * `bytes` - Raw byte buffer containing encoded audio file data.
+    /// * `filename_hint` - Optional filename or extension hint (e.g., `"song.flac"`).
+    ///
+    /// # Errors
+    /// Returns `Err(String)` if format probing or decoding fails.
     #[allow(dead_code)]
     pub fn load_from_memory(bytes: Vec<u8>, filename_hint: Option<&str>) -> Result<Self, String> {
         let title = filename_hint
@@ -66,6 +93,7 @@ impl AudioTrack {
         Self::decode_media_source(mss, hint, title)
     }
 
+    /// Internal helper to decode packets from a Symphonia `MediaSourceStream`.
     fn decode_media_source(
         mss: MediaSourceStream,
         hint: Hint,
@@ -122,6 +150,7 @@ impl AudioTrack {
                     buf.copy_interleaved_ref(audio_buf_ref);
                     let raw_samples = buf.samples();
 
+                    // Convert mono to dual stereo, or downmix multi-channel to stereo
                     if channels == 1 {
                         for &s in raw_samples {
                             stereo_samples.push(s);

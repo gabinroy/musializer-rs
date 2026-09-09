@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
 
+/// Defines color schemes and gradient palettes for GPU visualizer rendering.
 class VisualizerTheme {
+  /// Name of the theme preset.
   final String name;
+
+  /// Primary highlight color.
   final Color primary;
+
+  /// Secondary accent color.
   final Color secondary;
+
+  /// Tertiary accent color.
   final Color accent;
+
+  /// Bloom glow color for canvas shadow filters.
   final Color glow;
+
+  /// Background scaffold color.
   final Color background;
+
+  /// Multi-stop linear gradient applied to vertical frequency bars.
   final LinearGradient barGradient;
 
   const VisualizerTheme({
@@ -19,6 +33,7 @@ class VisualizerTheme {
     required this.barGradient,
   });
 
+  /// Built-in curated neon and OLED color theme presets.
   static const List<VisualizerTheme> presets = [
     VisualizerTheme(
       name: 'Cyberpunk Neon',

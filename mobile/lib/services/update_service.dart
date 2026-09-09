@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// Release details retrieved from GitHub Releases API.
 class AppReleaseInfo {
   final String tagName;
   final String version;
@@ -24,6 +25,7 @@ class AppReleaseInfo {
   });
 }
 
+/// Service handling background GitHub update checks and in-app APK downloads.
 class UpdateService {
   static const String repoOwner = 'gabinroy';
   static const String repoName = 'musializer-rs';

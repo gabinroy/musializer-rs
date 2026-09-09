@@ -2,8 +2,15 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/visualizer_theme.dart';
 
+/// GPU canvas renderer for smooth cubic bezier oscilloscopic audio waveforms.
+///
+/// Converts frequency spectrum energies into a mirrored, fluid fluid wave shape with
+/// neon gradient fills and blurred stroke glow edges.
 class WaveformPainter extends CustomPainter {
+  /// Real-time smoothed frequency magnitudes in range `[0.0, 1.0]`.
   final Float32List spectrum;
+
+  /// Active color and gradient theme.
   final VisualizerTheme theme;
 
   WaveformPainter({
@@ -61,27 +68,28 @@ class WaveformPainter extends CustomPainter {
     }
     fillPath.close();
 
+    // Fill with gradient
     final Paint fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          theme.secondary.withValues(alpha: 0.35),
-          theme.primary.withValues(alpha: 0.15),
-          theme.secondary.withValues(alpha: 0.35),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      ..shader = theme.barGradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.fill;
     canvas.drawPath(fillPath, fillPaint);
 
+    // Waveform Outline with Glow
     final Paint strokePaint = Paint()
-      ..shader = theme.barGradient.createShader(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-      )
+      ..color = Colors.white.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
+      ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
 
+    final Paint glowPaint = Paint()
+      ..color = theme.glow
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8.0);
+
+    canvas.drawPath(topPath, glowPaint);
     canvas.drawPath(topPath, strokePaint);
+    canvas.drawPath(bottomPath, glowPaint);
     canvas.drawPath(bottomPath, strokePaint);
   }
 
