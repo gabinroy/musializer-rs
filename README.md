@@ -13,6 +13,9 @@
   <a href="https://github.com/gabinroy/musializer-rs/actions/workflows/release.yml">
     <img src="https://github.com/gabinroy/musializer-rs/actions/workflows/release.yml/badge.svg" alt="Release Build & Publish" />
   </a>
+  <a href="https://gabinroy.github.io/musializer-rs/">
+    <img src="https://img.shields.io/badge/Docs-GitHub%20Pages-blueviolet?logo=github" alt="Documentation" />
+  </a>
   <img src="https://img.shields.io/badge/Desktop-Rust%20%2B%20egui-blue?logo=rust" alt="Desktop Ready" />
   <img src="https://img.shields.io/badge/Mobile-Flutter%20%2B%20Rust%20Core-teal?logo=flutter" alt="Mobile Ready" />
   <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-darkgreen" alt="Cross Platform" />
@@ -145,10 +148,13 @@ cd mobile && flutter analyze
 
 ## 📚 Documentation
 
+> 🌐 **Documentation & Guides Portal**: [https://gabinroy.github.io/musializer-rs/](https://gabinroy.github.io/musializer-rs/)
+
 - **[Core API Reference](docs/CORE_API_REFERENCE.md)**: In-depth technical reference for DSP pipelines, frequency mapping, audio decoding, and Rust API usage.
 - **[Architecture Guide](docs/ARCHITECTURE.md)**: Full workspace structure, multi-platform design, and data flow diagrams.
 - **[Mobile Development Guide](docs/MOBILE_DEVELOPMENT_GUIDE.md)**: Setup, NDK compilation, and iOS instructions.
 - **[App Exporting Commands](docs/APP_EXPORTING_COMMANDS.md)**: FFmpeg CLI commands and video pipeline details.
+- **[Package Distribution Guide](docs/PACKAGE_DISTRIBUTION_GUIDE.md)**: Packaging for Linux (AUR, Flatpak, AppImage, deb, rpm), Windows, and macOS.
 
 To generate and view interactive Rustdoc API documentation in your browser:
 ```bash

@@ -1,5 +1,7 @@
 # Musializer-Core API Reference & Documentation Guide
 
+> 🌐 **Live Documentation Portal**: [https://gabinroy.github.io/musializer-rs/](https://gabinroy.github.io/musializer-rs/)
+
 This document provides a comprehensive technical reference for `musializer-core`, the shared audio decoding and digital signal processing (DSP) engine behind Musializer-RS.
 
 ---
