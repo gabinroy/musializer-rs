@@ -2,7 +2,7 @@
 name = "musializer-desktop"
 version = "1.0.0"
 edition = "2024"
-license = "GPL-3.0-or-later"
+license = "AGPL-3.0-or-later"
 description = "High-Performance GPU-Accelerated Audio Visualizer in Rust"
 homepage = "https://github.com/gabinroy/musializer-rs"
 repository = "https://github.com/gabinroy/musializer-rs"

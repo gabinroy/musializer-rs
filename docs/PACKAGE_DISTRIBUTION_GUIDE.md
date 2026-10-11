@@ -1,6 +1,14 @@
 # Maintainer Package Distribution Guide: Musializer-RS
 
-This guide explains how to set up the credentials and accounts for automated package distribution across **Arch/CachyOS (AUR)**, **Windows (Winget)**, **Flathub**, **Debian/Ubuntu (APT)**, and **Fedora (DNF/COPR)**.
+This guide explains how to set up the credentials and accounts for automated package distribution across **Arch/CachyOS (AUR)**, **Windows (Winget)**, **Flathub**, **Debian/Ubuntu (APT)**, and **Fedora/RHEL (COPR)**.
+
+---
+
+## Licensing
+
+Musializer-RS is released under the **GNU Affero General Public License v3 or later (AGPL-3.0-or-later)**.
+
+This means the project remains free software, and any modified versions that are run or interacted with over a network must also provide users with the corresponding source code under the AGPL terms. For release packaging and distribution, keep the `LICENSE` file included with each binary/package and make the AGPL notice visible in release notes and installer metadata where applicable.
 
 ---
 
@@ -87,3 +95,4 @@ sudo dpkg -i musializer-rs-*.deb || sudo apt-get install -f -y
    sudo dnf copr enable gabinroy/musializer-rs
    sudo dnf install musializer-rs
    ```
+

@@ -48,4 +48,7 @@ flutter run -d ios
 ---
 
 ## 📄 License
-This project is licensed under the GPL-3.0-or-later License.
+
+This project is licensed under the AGPL-3.0-or-later License.
+Network users interacting with modified versions are entitled to receive the corresponding source code under the AGPL terms.
+

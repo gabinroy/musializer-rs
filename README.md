@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/Desktop-Rust%20%2B%20egui-blue?logo=rust" alt="Desktop Ready" />
   <img src="https://img.shields.io/badge/Mobile-Flutter%20%2B%20Rust%20Core-teal?logo=flutter" alt="Mobile Ready" />
   <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS%20%7C%20Android%20%7C%20iOS-darkgreen" alt="Cross Platform" />
-  <img src="https://img.shields.io/badge/License-GPL--3.0-orange" alt="License" />
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-orange" alt="License" />
 </p>
 
 ---
@@ -31,7 +31,7 @@
 - 🖥️ **Widescreen Desktop App**: Pure Rust `egui`/`eframe` with instant drag & drop, real-time waveform, spectrum bars, and radial visualizers.
 - 🎬 **Offline Video Exporter**: Render complete animated **H.264 MP4 videos** in **9:16 Portrait** (Shorts/Reels/TikTok) and **16:9 Landscape** (YouTube/Desktop) with synchronized stereo AAC audio.
 - 🔄 **In-App Auto-Updates**: Seamless GitHub Releases update checker with direct in-app APK download and package installer for Android.
-- 🎨 **Rich Visualizer Modes & Custom Covers**: Spectrum Bars, Radial Pulse with customizable center displays (Cover Art with app icon fallback, Track Title, Elapsed/Remaining Time, Glow Core), and Waveform mode.
+- 🎨 **Rich Visualizer Modes & Custom Covers**: Spectrum Bars, Radial Pulse with customizable center displays (Cover Art with app icon fallback, Track Title, Elapsed/Remaining Time, Glow Core), waveform overlays, and custom themes.
 
 ---
 
@@ -143,7 +143,6 @@ cargo test --workspace
 cd mobile && flutter analyze
 ```
 
-
 ---
 
 ## 📚 Documentation
@@ -164,5 +163,7 @@ cargo doc --workspace --no-deps --open
 ---
 
 ## 📄 License
-This project is licensed under the GPL-3.0-or-later License.
+
+This project is licensed under the AGPL-3.0-or-later License.
+Because this software is intended for networked use, the Affero clause ensures that users interacting with the software over a network can receive the corresponding source code for modified versions.
 

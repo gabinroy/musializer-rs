@@ -17,10 +17,10 @@ PublisherUrl: https://github.com/gabinroy
 PublisherSupportUrl: https://github.com/gabinroy/musializer-rs/issues
 PackageName: Musializer-RS
 PackageUrl: https://github.com/gabinroy/musializer-rs
-License: GPL-3.0-or-later
+License: AGPL-3.0-or-later
 LicenseUrl: https://raw.githubusercontent.com/gabinroy/musializer-rs/main/LICENSE
 ShortDescription: High-Performance GPU-Accelerated Audio Visualizer in Rust
-Description: Musializer-RS is a native, hardware-accelerated desktop audio visualizer bringing 60+ FPS fluid spectrum analysis, oscilloscope waveforms, radial pulses, and deterministic MP4 video rendering.
+Description: Musializer-RS is a native, hardware-accelerated desktop audio visualizer bringing 60+ FPS fluid spectrum analysis, oscilloscope waveforms, radial pulses, and deterministic MP4 video export.
 Tags:
   - audio
   - visualizer
