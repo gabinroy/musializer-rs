@@ -485,7 +485,7 @@ cat << 'EOF' > "${DOCS_DIR}/index.html"
     </main>
 
     <footer>
-      <p>Musializer-RS is licensed under the GPL-3.0-or-later License &bull; <a href="https://github.com/gabinroy/musializer-rs">GitHub Repository</a></p>
+      <p>Musializer-RS is licensed under the AGPL-3.0-or-later License &bull; <a href="https://github.com/gabinroy/musializer-rs">GitHub Repository</a></p>
     </footer>
   </div>
 </body>
